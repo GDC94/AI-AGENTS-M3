@@ -414,7 +414,7 @@ Casos ambiguos resueltos con la regla de 4.4:
 
 ## 5. Test Queries
 
-Archivo: `test_queries.json`. Se escriben **después de los Documents**, porque `expected_section` tiene que coincidir con un título real.
+Archivo: `test_queries.json`. Se escriben **después de los Documents**, porque `expected_section` tiene que coincidir con un título real. Las generó un LLM distinto del que escribió los Documents, a pedido del autor y con un prompt fijado por él, y se validaron contra los Documents; no se regeneran ni se editan sin preguntarle.
 
 ### 5.1 Para qué se usan
 

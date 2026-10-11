@@ -1,0 +1,434 @@
+[
+  {
+    "id": "hr-01",
+    "query": "Acabo de aceptar la oferta, ¿qué archivos personales tengo que subir y hasta cuándo?",
+    "expected_area": "hr",
+    "expected_section": "Documentación obligatoria para el legajo",
+    "asker": "staff",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-02",
+    "query": "Mi credencial de nivel 2 vence en cuatro meses, ¿cuándo tengo que iniciar el trámite para que no quede suspendida?",
+    "expected_area": "hr",
+    "expected_section": "Renovación de la habilitación",
+    "asker": "staff",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-03",
+    "query": "Mi hermana empezó a trabajar en uno de nuestros organismos clientes, ¿debo informarlo?",
+    "expected_area": "hr",
+    "expected_section": "Conflictos de interés",
+    "asker": "staff",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-04",
+    "query": "Estoy con fiebre desde ayer; si falto tres días, ¿qué comprobante debo cargar y en qué plazo?",
+    "expected_area": "hr",
+    "expected_section": "Licencia por enfermedad y certificado médico",
+    "asker": "staff",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-05",
+    "query": "Si empiezo a las 8, ¿en qué tramo del día debo estar conectado sí o sí?",
+    "expected_area": "hr",
+    "expected_section": "Horario de trabajo y franja de disponibilidad",
+    "asker": "staff",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-06",
+    "query": "¿En qué mes me califican y quiénes completan el cuestionario sobre mi trabajo?",
+    "expected_area": "hr",
+    "expected_section": "Evaluación de desempeño anual",
+    "asker": "staff",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "hr-07",
+    "query": "Termino mi relación con Atalaya la semana próxima, ¿me dan un comprobante con las fechas y el puesto?",
+    "expected_area": "hr",
+    "expected_section": "Certificado de trabajo",
+    "asker": "staff",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "hr-08",
+    "query": "Nuestro referente estará de vacaciones, ¿quién atiende al organismo mientras no está?",
+    "expected_area": "hr",
+    "expected_section": "Cobertura cuando el consultor está ausente",
+    "asker": "client",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "tech-01",
+    "query": "No recuerdo mi clave de acceso, ¿puedo cambiarla yo sin llamar a soporte?",
+    "expected_area": "tech",
+    "expected_section": "Recuperar una contraseña olvidada",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-02",
+    "query": "Necesito que una persona pase de Lector a Editor, ¿dónde hace ese ajuste el administrador?",
+    "expected_area": "tech",
+    "expected_section": "Cambiar el rol de un usuario existente",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-03",
+    "query": "Un padrón quedó marcado como Reservado y debería ser Secreto, ¿qué pasos sigue el administrador?",
+    "expected_area": "tech",
+    "expected_section": "Reclasificar un conjunto de datos",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-04",
+    "query": "¿Puedo subir un ZIP de 180 MB con varias hojas de cálculo?",
+    "expected_area": "tech",
+    "expected_section": "Formatos de archivo aceptados",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-05",
+    "query": "Necesito bajar 750.000 filas; ¿puedo cerrar la pantalla mientras se prepara el archivo?",
+    "expected_area": "tech",
+    "expected_section": "Exportaciones diferidas de gran volumen",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-06",
+    "query": "El ente de control me pidió un CSV de actividades de los últimos seis meses, ¿cómo lo obtengo y qué límites hay?",
+    "expected_area": "tech",
+    "expected_section": "Descargar el registro de auditoría",
+    "asker": "client",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "tech-07",
+    "query": "¿En qué momento del mes puede interrumpirse la versión en la nube por tareas planificadas?",
+    "expected_area": "tech",
+    "expected_section": "Ventanas de mantenimiento programado",
+    "asker": "staff",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "tech-08",
+    "query": "Necesito instalar una herramienta que no aparece en la tienda corporativa, ¿cómo pido autorización?",
+    "expected_area": "tech",
+    "expected_section": "Software permitido en la notebook",
+    "asker": "staff",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "finance-01",
+    "query": "El ministerio publicará un concurso de ofertas, ¿qué seis archivos entrega Atalaya y en cuánto tiempo los prepara?",
+    "expected_area": "finance",
+    "expected_section": "Documentación que presenta Atalaya Data en una licitación",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-02",
+    "query": "Mandamos el pedido sin número de expediente; ¿cómo lo corregimos y qué pasa si demoramos un mes?",
+    "expected_area": "finance",
+    "expected_section": "Qué ocurre si la orden de compra tiene errores",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-03",
+    "query": "¿En qué parte del portal encuentro los comprobantes en PDF y XML y durante cuántos años quedan disponibles?",
+    "expected_area": "finance",
+    "expected_section": "Dónde descargar las facturas",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-04",
+    "query": "Somos un municipio: ¿cuántos días tenemos desde la emisión para cancelar el comprobante?",
+    "expected_area": "finance",
+    "expected_section": "Plazo de pago de las facturas a organismos",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-05",
+    "query": "Ya usamos 540 GB, ¿cuánto nos agregarán por mes y desde cuándo?",
+    "expected_area": "finance",
+    "expected_section": "Cargo por almacenamiento adicional",
+    "asker": "client",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-06",
+    "query": "Volví de un viaje hace dos semanas, ¿hasta qué día puedo cargar los consumos?",
+    "expected_area": "finance",
+    "expected_section": "Plazo para presentar la rendición de gastos",
+    "asker": "staff",
+    "type": "direct",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-07",
+    "query": "Me robaron el plástico de la empresa, ¿a quién llamo primero y en qué plazo aviso a Tesorería?",
+    "expected_area": "finance",
+    "expected_section": "Qué hacer si la tarjeta se pierde o es robada",
+    "asker": "staff",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "finance-08",
+    "query": "¿En qué parte del portal aparece el PDF mensual de mis haberes y cuánto tiempo queda guardado?",
+    "expected_area": "finance",
+    "expected_section": "Dónde ver y descargar el recibo",
+    "asker": "staff",
+    "type": "direct",
+    "split": "validation"
+  },
+  {
+    "id": "hr-09",
+    "query": "Empiezo a distancia el lunes y todavía no recibí la computadora, ¿para qué fecha debería llegar y a quién aviso?",
+    "expected_area": "hr",
+    "expected_section": "Entrega de la notebook y del equipo",
+    "asker": "staff",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-09",
+    "query": "La computadora que me dieron hoy muestra V-12 cuando intento entrar desde casa, ¿cómo lo arreglo?",
+    "expected_area": "tech",
+    "expected_section": "Qué hacer si la VPN no conecta",
+    "asker": "staff",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-10",
+    "query": "Decidí terminar mi relación laboral con Atalaya; ¿qué formulario envío para formalizarlo?",
+    "expected_area": "hr",
+    "expected_section": "Cómo presentar la renuncia",
+    "asker": "staff",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-10",
+    "query": "Una persona ya no trabaja en el ministerio y necesito cerrarle la cuenta hoy, ¿qué debe hacer el administrador?",
+    "expected_area": "tech",
+    "expected_section": "Revocar el acceso de un usuario que dejó el organismo",
+    "asker": "client",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-09",
+    "query": "Nuestro organismo ya tiene 30 cuentas y quiere agregar otras 10 por seis meses, ¿qué importe corresponde?",
+    "expected_area": "finance",
+    "expected_section": "Costo de sumar licencias durante la vigencia",
+    "asker": "client",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-11",
+    "query": "Tenemos que crear diez cuentas institucionales de una vez, ¿se pueden cargar juntas?",
+    "expected_area": "tech",
+    "expected_section": "Dar de alta usuarios nuevos en la plataforma",
+    "asker": "client",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-10",
+    "query": "¿Qué día se deposita mi remuneración este mes?",
+    "expected_area": "finance",
+    "expected_section": "Fecha de pago del sueldo",
+    "asker": "staff",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-11",
+    "query": "¿En qué momento del año me comunican el aumento por mérito?",
+    "expected_area": "hr",
+    "expected_section": "Revisión salarial",
+    "asker": "staff",
+    "type": "frontier",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-12",
+    "query": "El organismo quiere que otra persona lleve el proyecto, ¿cómo presenta ese pedido y cuánto tarda el cambio?",
+    "expected_area": "hr",
+    "expected_section": "Cómo solicitar el reemplazo de un consultor",
+    "asker": "client",
+    "type": "frontier",
+    "split": "validation"
+  },
+  {
+    "id": "tech-12",
+    "query": "Hoy trabajo desde mi casa y necesito entrar a los sistemas internos, ¿qué herramienta corporativa debo usar?",
+    "expected_area": "tech",
+    "expected_section": "Conectarse a la VPN corporativa",
+    "asker": "staff",
+    "type": "frontier",
+    "split": "validation"
+  },
+  {
+    "id": "finance-11",
+    "query": "Transferimos ayer, pero el comprobante sigue pendiente en el portal; ¿qué información enviamos para que lo imputen?",
+    "expected_area": "finance",
+    "expected_section": "Aviso de pago al área de Cobranzas",
+    "asker": "client",
+    "type": "frontier",
+    "split": "validation"
+  },
+  {
+    "id": "tech-13",
+    "query": "Me robaron el equipo de la empresa en el tren, ¿cómo hago para que nadie pueda abrirlo?",
+    "expected_area": "tech",
+    "expected_section": "Bloqueo y borrado remoto de un equipo extraviado",
+    "asker": "staff",
+    "type": "frontier",
+    "split": "validation"
+  },
+  {
+    "id": "oos-01",
+    "query": "¿Cuánto tiempo debe cocinarse una lasaña casera?",
+    "expected_area": "out_of_scope",
+    "expected_section": null,
+    "asker": "client",
+    "type": "out_of_scope",
+    "split": "calibration"
+  },
+  {
+    "id": "oos-02",
+    "query": "¿Quién ganó la final del campeonato de tenis de ayer?",
+    "expected_area": "out_of_scope",
+    "expected_section": null,
+    "asker": "staff",
+    "type": "out_of_scope",
+    "split": "calibration"
+  },
+  {
+    "id": "oos-03",
+    "query": "¿Va a llover este fin de semana en Bariloche?",
+    "expected_area": "out_of_scope",
+    "expected_section": null,
+    "asker": "client",
+    "type": "out_of_scope",
+    "split": "calibration"
+  },
+  {
+    "id": "oos-04",
+    "query": "Trabajo en una panadería y la amasadora industrial no enciende, ¿qué pieza reviso primero?",
+    "expected_area": "out_of_scope",
+    "expected_section": null,
+    "asker": "staff",
+    "type": "out_of_scope",
+    "split": "validation"
+  },
+  {
+    "id": "oos-05",
+    "query": "¿Qué museos abren los lunes en Montevideo?",
+    "expected_area": "out_of_scope",
+    "expected_section": null,
+    "asker": "client",
+    "type": "out_of_scope",
+    "split": "validation"
+  },
+  {
+    "id": "hr-13",
+    "query": "Me caso el mes que viene, ¿cuántos días puedo ausentarme y cómo los solicito?",
+    "expected_area": "hr",
+    "expected_section": null,
+    "asker": "staff",
+    "type": "unanswerable",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-14",
+    "query": "¿Hay alguna regla sobre la ropa que debemos usar en la oficina central?",
+    "expected_area": "hr",
+    "expected_section": null,
+    "asker": "staff",
+    "type": "unanswerable",
+    "split": "calibration"
+  },
+  {
+    "id": "tech-14",
+    "query": "Queremos consultar los tableros desde nuestro sistema mediante endpoints, ¿dónde están las credenciales y la guía de integración?",
+    "expected_area": "tech",
+    "expected_section": null,
+    "asker": "client",
+    "type": "unanswerable",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-12",
+    "query": "¿El organismo puede cancelar una factura en dólares mediante una transferencia desde el exterior?",
+    "expected_area": "finance",
+    "expected_section": null,
+    "asker": "client",
+    "type": "unanswerable",
+    "split": "calibration"
+  },
+  {
+    "id": "finance-13",
+    "query": "Tengo una urgencia personal, ¿puedo pedir que me adelanten parte del próximo pago mensual?",
+    "expected_area": "finance",
+    "expected_section": null,
+    "asker": "staff",
+    "type": "unanswerable",
+    "split": "calibration"
+  },
+  {
+    "id": "hr-15",
+    "query": "Recomendé a una candidata que fue contratada, ¿recibo algún premio por la recomendación?",
+    "expected_area": "hr",
+    "expected_section": null,
+    "asker": "staff",
+    "type": "unanswerable",
+    "split": "validation"
+  },
+  {
+    "id": "tech-15",
+    "query": "¿Existe una versión para el teléfono que permita revisar los tableros sin abrir el navegador?",
+    "expected_area": "tech",
+    "expected_section": null,
+    "asker": "client",
+    "type": "unanswerable",
+    "split": "validation"
+  }
+]
