@@ -17,8 +17,24 @@ Scope (PRD "Router", "Flow and composition", "Observability"; ADR 0003 as amende
 
 Open decision to confirm with the author (do not invent): the handful of real Queries used by the integration test live inside the test module as samples and never enter the official Test Queries file.
 
-- [ ] Seam 1 test: with a `RunnableLambda` Router returning target out_of_scope and a recording publisher, the Answer is the fixed message, no retrieval, model or Judge double is called, and exactly one `abstained` score with value 0 is recorded for the trace id in the `SupportAnswer`.
-- [ ] A test pins the `Route.target` values to the `Area` values plus out_of_scope.
-- [ ] Seam 1 test: the conditional edge sends each of the three Area targets to its own node (placeholders are acceptable; the test asserts which node ran).
-- [ ] Integration test: three sample Queries (one per Area) and one off-topic Query are routed by the real model to the expected target, and the off-topic one produces a trace in Langfuse with the `abstained` score visible.
-- [ ] Unit tests make no network calls.
+- [x] Seam 1 test: with a `RunnableLambda` Router returning target out_of_scope and a recording publisher, the Answer is the fixed message, no retrieval, model or Judge double is called, and exactly one `abstained` score with value 0 is recorded for the trace id in the `SupportAnswer`.
+- [x] A test pins the `Route.target` values to the `Area` values plus out_of_scope.
+- [x] Seam 1 test: the conditional edge sends each of the three Area targets to its own node (placeholders are acceptable; the test asserts which node ran).
+- [x] Integration test: three sample Queries (one per Area) and one off-topic Query are routed by the real model to the expected target, and the off-topic one produces a trace in Langfuse with the `abstained` score visible.
+- [x] Unit tests make no network calls.
+
+## Comments
+
+**2026-10-11, author:** approved. Open decision confirmed: the sample Queries used by the integration tests live inside the test modules and never enter the official Test Queries file.
+
+Implementer choices approved by the author:
+
+- `SupportAnswer` lives at the package root (`support_answer.py`), so the checks package can use it without importing LangGraph through the composition module.
+- `SupportAnswer.verdict` accepts only `None` and `ScorePublisher` has only `publish_abstention` until ticket 05 adds `QualityVerdict` and `publish_quality_scores`.
+- The recording score publisher lives in `tests/doubles.py`.
+
+Findings:
+
+- With no Langfuse keys the client is disabled and a span reports trace id `00000000000000000000000000000000`; unit tests accept it.
+- Langfuse organizations created on or after 2026-09-16 get HTTP 410 from the legacy read APIs (traces, scores). The integration test reads through the v2 observations and v3 scores endpoints.
+- Integration run with real keys: 6 passed.
