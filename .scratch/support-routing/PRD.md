@@ -17,7 +17,7 @@ A support routing system built with LangChain and LangGraph, traced in Langfuse:
 - A **Router** reads each Query and produces exactly one **Route**: the Area that resolves the main request, or Out of Scope.
 - One **Specialist** per Area answers from that Area's **Knowledge Base** only. It retrieves the most similar **Sections**, discards those under the **Similarity Threshold**, and either answers grounded in the surviving Sections or returns an **Abstention** without calling the model.
 - Out of Scope Queries get a fixed reply without any Specialist.
-- A **Judge** rates every grounded **Answer** with four **Ratings** (overall quality, relevance, completeness, accuracy) and a Reason, using the Query, the Answer and the Sections used. Abstentions and Out of Scope replies are counted with a boolean `abstained` score, never judged.
+- A **Judge** rates every grounded **Answer** (not an Abstention, with Sections) with four **Ratings** (overall quality, relevance, completeness, accuracy) and a Reason, using the Query, the Answer and the Sections used. Abstentions and Out of Scope replies are counted with a boolean `abstained` score, never judged.
 - Every Query is one Langfuse trace holding the Route, the retrieval, the Answer and the Judge's scores, so the team can filter misroutes, failed retrievals and low-accuracy Answers.
 - **Checks** (deterministic comparisons against **Test Queries**) measure routing accuracy, retrieval hits and abstention behaviour; the Similarity Threshold is calibrated locally and the final run is a Langfuse Experiment.
 
@@ -38,7 +38,7 @@ A support routing system built with LangChain and LangGraph, traced in Langfuse:
 13. As a support team lead, I want each trace to show which Sections were retrieved and their Similarity, so that I can tell a failed retrieval from a bad Answer.
 14. As a support team lead, I want four quality scores on every grounded Answer, so that I can filter Answers with low accuracy and review them.
 15. As a support team lead, I want every trace to carry an `abstained` score, so that I can list abstentions per Area and review whether they were justified.
-16. As a support team lead, I want the Judge's Reason in Spanish, so that the support team can read it directly.
+16. As a support team lead, I want the Judge's Reason in Spanish, attached once as the comment of the overall `quality` score, so that the support team can read it in Langfuse next to the overall Rating.
 17. As an AI engineer, I want the Router, the Specialists and the Judge to each use a model chosen for its role and configured by environment variable, so that I can trade cost against quality per role.
 18. As an AI engineer, I want the Similarity Threshold, top-k and chunking sizes in configuration, so that I can calibrate without editing code.
 19. As an AI engineer, I want the Knowledge Bases indexed once and skipped on later runs unless forced, so that I do not pay for embeddings on every start.
@@ -82,9 +82,10 @@ A support routing system built with LangChain and LangGraph, traced in Langfuse:
 
 ### Judge
 
-- Input: the Query, the Answer and the Retrieved Sections used. Passing the Sections is a superset of the assignment's "query and answer" and is what makes accuracy mean groundedness.
-- Output: a `QualityVerdict` with four whole-number Ratings from 1 to 10 (quality overall, relevance, completeness, accuracy) and a Reason in Spanish, from a single structured-output call. The judging package owns the prompt and exposes a builder that takes a plain chat model.
-- The Judge rates only grounded Answers. Abstentions and Out of Scope replies are never judged; every trace gets a boolean `abstained` score instead.
+- Input: a dict `{query, answer, sections}` with the Query, the Answer and the Retrieved Sections used; the judging package formats the Sections for the prompt. Passing the Sections is a superset of the assignment's "query and answer" and is what makes accuracy mean groundedness.
+- Output: a `QualityVerdict`, defined in `judging/`, with the fields `reason` (in Spanish, first so the model explains before rating), then `quality` (overall), `relevance`, `completeness` and `accuracy`: strict whole-number Ratings from 1 to 10 (`7.0`, `"7"` and `True` are rejected). It comes from a single structured-output call. The judging package owns the prompt and exposes a builder that takes a plain chat model; `build_judge` uses strict `json_schema` structured output, like the Router.
+- `QualityVerdict.ratings_by_name()` is the single source of the four Rating names, derived from the model fields minus `reason`.
+- The Judge rates only grounded Answers: an Answer is judged only when it is not an Abstention and has Sections, so Out of Scope replies are excluded too. Abstentions and Out of Scope replies are never judged; every trace gets a boolean `abstained` score instead.
 
 ### Knowledge Bases
 
@@ -106,7 +107,9 @@ A support routing system built with LangChain and LangGraph, traced in Langfuse:
 ### Observability
 
 - One Langfuse client is initialised from three explicit values (public key, secret key, host). The LangChain callback handler takes no parameters and uses that client.
-- A `ScorePublisher` port with two operations: publish the four quality scores for a trace, and publish the `abstained` boolean for a trace. The production adapter writes to Langfuse; tests use an in-memory recording adapter.
+- A `ScorePublisher` port with two operations: publish the four quality scores for a trace, and publish the `abstained` boolean for a trace. The production adapter writes to Langfuse; tests use an in-memory recording adapter that records ordered `(trace_id, name, value)` entries.
+- Scores on a trace are published in this order: `abstained` (BOOLEAN), then `quality`, `relevance`, `completeness`, `accuracy` (NUMERIC). The Judge's Reason is the comment of the `quality` score only; the other three carry no comment.
+- `abstained` is published before the Judge runs, so if the Judge call fails the trace keeps only `abstained` and the exception propagates.
 - `flush` is called at the end of the notebook and of short scripts.
 
 ### Configuration and models
@@ -127,10 +130,10 @@ A good test enters the system at a seam a caller would use, passes test doubles 
 
 Four seams, confirmed with the author:
 
-1. **The answering function** (built from the graph, the Judge and the publisher). Doubles: a `RunnableLambda` returning a fixed Route as the Router, a `RunnableLambda` returning a fixed Quality Verdict as the Judge, a retrieval callable returning chosen `RetrievedSection`s with chosen Similarities, LangChain's fake list chat model for the drafting step, and the recording score publisher. Behaviours covered here: each Route target reaches its node; Out of Scope returns the fixed message, calls no retrieval and no Judge, and publishes `abstained` 0; Sections under the threshold are dropped; no surviving Section yields the fixed no-information message, no model call, no Judge call and `abstained` 1; a grounded Answer calls the model once with the surviving Sections, calls the Judge and publishes four scores plus `abstained` 0; the `SupportAnswer` shape. Specialist behaviour is tested only through this seam; there are no separate Specialist tests.
+1. **The answering function** (built from the graph, the Judge and the publisher). Doubles: a `RunnableLambda` returning a fixed Route as the Router, a `RunnableLambda` returning a fixed Quality Verdict as the Judge (it receives the `{query, answer, sections}` dict), a retrieval callable returning chosen `RetrievedSection`s with chosen Similarities, LangChain's fake list chat model for the drafting step, and the recording score publisher. Behaviours covered here: each Route target reaches its node; Out of Scope returns the fixed message, calls no retrieval and no Judge, and publishes `abstained` 0; Sections under the threshold are dropped; no surviving Section yields the fixed no-information message, no model call, no Judge call and `abstained` 1; a grounded Answer calls the model once with the surviving Sections, calls the Judge and publishes four scores plus `abstained` 0; the `SupportAnswer` shape. Specialist behaviour is tested only through this seam; there are no separate Specialist tests.
 2. **The knowledge base interface** (index all Areas, build retrieval). Doubles: Chroma in memory (no persistence location) and LangChain's deterministic fake embeddings. Behaviours: a small Markdown Document with three second-level headings yields three Sections with deterministic ids; a second run skips; a different embedding model errors; force rebuilds; the retrieval callable returns `RetrievedSection`s with the heading as title and a Similarity in 0 to 1. The chunker keeps a direct test of its own because it has logic of its own (one Section per heading, heading kept inside the text, oversize Sections split with overlap); it is the only internal file tested directly.
 3. **The Checks and the sweep**, tested directly as pure functions with hand-built `SupportAnswer`s, `TestQuery`s and retrieval callables; a test also pins the Route target values to the Area values plus out_of_scope.
-4. **Integration** (marked `integration`, skipped without keys): the Router builder and the Judge builder against the real models on a handful of Test Queries, the Langfuse score publisher, and one validation Experiment run. These are the only tests of the prompts; the Router and Judge builders have no unit tests because nothing in them can be exercised without a model.
+4. **Integration** (marked `integration`, skipped without keys): the Router builder and the Judge builder against the real models on a handful of Test Queries, the Langfuse score publisher (including the Reason as the comment of the `quality` score only), and one validation Experiment run. These are the only tests of the prompts; the Router and Judge builders have no unit tests because nothing in them can be exercised without a model.
 
 Not unit-tested beyond what exists: the Settings and chat-model factory, which keep their current tests adapted to the new fields. Existing tests use pytest and are the prior art for style. Tests are organised per package and exercise each package's public interface. Unit tests never call OpenAI, Langfuse or disk-persisted Chroma.
 
