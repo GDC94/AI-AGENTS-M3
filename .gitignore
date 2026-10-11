@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets
+.env
+
+# Logs
+logs/
+
+# Persisted Chroma index (rebuilt by indexing)
+.chroma/
+
+# Third-party agent skills (reproducible from skills-lock.json)
+.agents/
+.claude/skills/
