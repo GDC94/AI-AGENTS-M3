@@ -496,7 +496,7 @@ El trabajo está partido en **diez tickets** en `.scratch/support-routing/issues
 | 05 | **Judge:** `QualityVerdict`, `build_judge` con `JUDGE_PROMPT`, el Judge fuera del grafo solo para Answers grounded, los cuatro scores por `ScorePublisher` | 04 | No |
 | 06 | **Checks y barrido del umbral:** `TestQuery`, `load_test_queries`, los tres Checks, `sweep_threshold` | 02 (paralelo con 03, 04 y 05) | No |
 | 07 | **Experimento en Langfuse:** `upload_test_queries`, `run_validation_experiment` con los tres Checks adaptados | 05, 06 | No |
-| 08 | **Primera corrida real:** indexar los Documents, barrido del umbral con `calibration` (local), elegir el umbral, medición final con `validation` (experimento en Langfuse), test de >50 Sections por Knowledge Base | 07 | **Sí**, Documents y Test Queries |
+| 08 | **Primera corrida real:** **armar el sistema real** (`Settings` leído una vez en `multi_agent_system.py`, modelos, Chroma y Langfuse reales), indexar los Documents, barrido del umbral con `calibration` (local), elegir el umbral, medición final con `validation` (experimento en Langfuse), test de >50 Sections por Knowledge Base | 07 | **Sí**, Documents y Test Queries |
 | 09 | **Notebook** `multi_agent_system.ipynb` con las 6 secciones de la consigna | 08 | Sí |
 | 10 | **README** (con la tabla de mapeo de la sección 1, los resultados medidos y las limitaciones conocidas) y **`requirements.txt`** | 08 (paralelo con 09) | — |
 
