@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Preparation and shared domain types).
 
-**Status:** ready-for-agent
+**Status:** done
 
 Scope (PRD "Router", "Flow and composition", "Observability"; ADR 0003 as amended):
 

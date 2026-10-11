@@ -9,5 +9,8 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-agent`          | `ready-for-agent`            | Fully specified, ready for an AFK agent  |
 | `ready-for-human`          | `ready-for-human`            | Requires human implementation            |
 | `wontfix`                  | `wontfix`                    | Will not be actioned                     |
+| (closed issue)             | `done`                       | Implemented and approved by the author   |
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), set the `Status:` line to the corresponding string from this table.
+
+`done` has no label in mattpocock/skills: on GitHub, closing an issue is a separate action from its labels. Local markdown issues have no closed state, so `done` stands for it. Set it only after the author approves the work, and record the approval under `## Comments`.
