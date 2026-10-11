@@ -1,4 +1,5 @@
 import time
+from types import SimpleNamespace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -8,54 +9,54 @@ from orchestration.config import load_settings
 from orchestration.judging import QualityVerdict
 from orchestration.llm import build_chat_model
 from orchestration.multi_agent_system import build_answer_query, build_graph, build_specialists
-from orchestration.observability import LangfuseScorePublisher, init_langfuse
-from orchestration.routing import build_router
 from orchestration.checks import TestQuery
+from orchestration.observability import LangfuseScorePublisher, init_langfuse
 from orchestration.observability.experiments import (
     adapt_check,
     build_check_evaluators,
     build_dataset_item,
+    build_experiment_task,
     rebuild_test_query,
     run_validation_experiment,
     upload_test_queries,
 )
-from orchestration.routing import Route
+from orchestration.routing import Route, build_router
 from orchestration.section import RetrievedSection
 from orchestration.support_answer import SupportAnswer
 from tests.doubles import RecordingLangfuse
 from tests.keys import requires_keys
-from tests.test_multi_agent_system import index_sample_document_for_every_area
+from tests.samples import index_sample_document_for_every_area
 
-DIRECT = TestQuery(
-    id="q01", query="How many days of annual leave do I get?", expected_area="hr",
-    expected_section="Annual leave", asker="staff", type="direct", split="validation",
-)
-FRONTIER = TestQuery(
+def make_test_query(**overrides) -> TestQuery:
+    fields = {
+        "id": "q01", "query": "How many days of annual leave do I get?", "expected_area": "hr",
+        "expected_section": "Annual leave", "asker": "staff", "type": "direct", "split": "validation",
+    }
+    return TestQuery(**(fields | overrides))
+
+
+DIRECT = make_test_query()
+FRONTIER = make_test_query(
     id="q02", query="When is my raise paid?", expected_area="finance",
-    expected_section="Payroll dates", asker="client", type="frontier", split="validation",
+    expected_section="Payroll dates", asker="client", type="frontier",
 )
-UNANSWERABLE = TestQuery(
-    id="q03", query="Can I bring my dog to the office?", expected_area="hr",
-    asker="staff", type="unanswerable", split="validation",
+UNANSWERABLE = make_test_query(
+    id="q03", query="Can I bring my dog to the office?", expected_section=None, type="unanswerable",
 )
-OUT_OF_SCOPE = TestQuery(
-    id="q04", query="Who won the match yesterday?", expected_area="out_of_scope",
-    asker="client", type="out_of_scope", split="validation",
+OUT_OF_SCOPE = make_test_query(
+    id="q04", query="Who won the match yesterday?", expected_area="out_of_scope", expected_section=None,
+    asker="client", type="out_of_scope",
 )
 # Sample Test Queries for the integration test; they match the sample HR Document, not the real data.
 TEST_DATASET_NAME = "support-routing-validation-test"
 VERDICT = QualityVerdict(quality=8, relevance=9, completeness=7, accuracy=10, reason="Respuesta fiel a la sección.")
-DIRECT_SAMPLE = TestQuery(
-    id="sample-direct", query="How many days of annual leave do I get per year?", expected_area="hr",
-    expected_section="Annual leave", asker="staff", type="direct", split="validation",
+DIRECT_SAMPLE = make_test_query(id="sample-direct", query="How many days of annual leave do I get per year?")
+UNANSWERABLE_SAMPLE = make_test_query(
+    id="sample-unanswerable", query="Can I bring my dog to the office?", expected_section=None, type="unanswerable",
 )
-UNANSWERABLE_SAMPLE = TestQuery(
-    id="sample-unanswerable", query="Can I bring my dog to the office?", expected_area="hr",
-    asker="staff", type="unanswerable", split="validation",
-)
-OUT_OF_SCOPE_SAMPLE = TestQuery(
+OUT_OF_SCOPE_SAMPLE = make_test_query(
     id="sample-out-of-scope", query="Who won the football match yesterday?", expected_area="out_of_scope",
-    asker="client", type="out_of_scope", split="validation",
+    expected_section=None, asker="client", type="out_of_scope",
 )
 ALL_TEST_QUERIES = [DIRECT, FRONTIER, UNANSWERABLE, OUT_OF_SCOPE]
 
@@ -133,10 +134,10 @@ def names_evaluated(test_query: TestQuery) -> dict[str, bool]:
 
 
 def test_the_three_checks_apply_where_the_ticket_06_decision_says_they_do():
-    assert names_evaluated(DIRECT) == {"routing_correct": True, "retrieval_hit": True, "abstained": False}
-    assert names_evaluated(FRONTIER) == {"routing_correct": False, "retrieval_hit": False, "abstained": False}
-    assert names_evaluated(UNANSWERABLE) == {"routing_correct": True, "abstained": False}
-    assert names_evaluated(OUT_OF_SCOPE) == {"routing_correct": False}
+    assert names_evaluated(DIRECT) == {"check_routing_correct": True, "check_retrieval_hit": True, "check_abstained": False}
+    assert names_evaluated(FRONTIER) == {"check_routing_correct": False, "check_retrieval_hit": False, "check_abstained": False}
+    assert names_evaluated(UNANSWERABLE) == {"check_routing_correct": True, "check_abstained": False}
+    assert names_evaluated(OUT_OF_SCOPE) == {"check_routing_correct": False}
 
 
 def test_uploading_creates_the_dataset_and_one_item_per_test_query():
@@ -177,9 +178,9 @@ def test_the_experiment_runs_on_the_dataset_with_the_three_checks_and_flushes_at
     (experiment,) = langfuse.last_dataset.experiments
     assert experiment["name"] == "prompt v1"
     assert [evaluator.__name__ for evaluator in experiment["evaluators"]] == [
-        "routing_correct",
-        "retrieval_hit",
-        "abstained",
+        "check_routing_correct",
+        "check_retrieval_hit",
+        "check_abstained",
     ]
     assert langfuse.calls == ["get_dataset", "flush"]
 
@@ -200,6 +201,12 @@ def test_the_experiment_task_answers_the_query_of_the_dataset_item():
 
     assert answered == [DIRECT.query]
     assert output == make_support_answer()
+
+
+def test_the_experiment_task_needs_only_the_input_of_the_dataset_item():
+    task = build_experiment_task(lambda query: make_support_answer())
+
+    assert task(item=SimpleNamespace(input=DIRECT.query)) == make_support_answer()
 
 
 def fetch_experiment_items(langfuse, run_name, ready, attempts=15, delay_seconds=2.0):
@@ -248,9 +255,9 @@ def test_an_experiment_over_three_test_queries_is_linked_to_traces_and_never_dup
         for item_result in result.item_results
     }
     assert evaluated == {
-        DIRECT_SAMPLE.query: {"routing_correct", "retrieval_hit", "abstained"},
-        UNANSWERABLE_SAMPLE.query: {"routing_correct", "abstained"},
-        OUT_OF_SCOPE_SAMPLE.query: {"routing_correct"},
+        DIRECT_SAMPLE.query: {"check_routing_correct", "check_retrieval_hit", "check_abstained"},
+        UNANSWERABLE_SAMPLE.query: {"check_routing_correct", "check_abstained"},
+        OUT_OF_SCOPE_SAMPLE.query: {"check_routing_correct"},
     }
     assert all(item_result.trace_id == item_result.output.trace_id for item_result in result.item_results)
     expected_trace_ids = {item_result.trace_id for item_result in result.item_results}
@@ -259,13 +266,15 @@ def test_an_experiment_over_three_test_queries_is_linked_to_traces_and_never_dup
         result.run_name,
         ready=lambda items: (
             {item.trace_id for item in items} == expected_trace_ids
-            and sum(len(item.scores or []) for item in items) >= 6
+            and sum(1 for item in items for score in item.scores or [] if score.name.startswith("check_")) >= 6
         ),
     )
     assert {item.trace_id for item in stored} == expected_trace_ids
     assert {item.experiment_item_id for item in stored} == {f"{TEST_DATASET_NAME}:{tq.id}" for tq in test_queries}
-    # Traces also carry the `abstained` score that answer_query publishes, so compare with <=, not ==.
+    # Traces also carry the scores that answer_query publishes (`abstained`, quality), so compare with <=, not ==.
     stored_names = {item.experiment_item_id: {score.name for score in item.scores} for item in stored}
     for test_query in test_queries:
         assert evaluated[test_query.query] <= stored_names[f"{TEST_DATASET_NAME}:{test_query.id}"]
-    assert "retrieval_hit" not in stored_names[f"{TEST_DATASET_NAME}:{UNANSWERABLE_SAMPLE.id}"]
+    assert "check_abstained" in stored_names[f"{TEST_DATASET_NAME}:{UNANSWERABLE_SAMPLE.id}"]
+    assert "check_abstained" not in stored_names[f"{TEST_DATASET_NAME}:{OUT_OF_SCOPE_SAMPLE.id}"]
+    assert "check_retrieval_hit" not in stored_names[f"{TEST_DATASET_NAME}:{UNANSWERABLE_SAMPLE.id}"]

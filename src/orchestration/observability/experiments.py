@@ -5,10 +5,8 @@ from typing import Any
 
 from langfuse import Evaluation, Langfuse
 
-from orchestration.checks import TestQuery, abstained, retrieval_hit, routing_correct
+from orchestration.checks import Check, TestQuery, abstained, retrieval_hit, routing_correct
 from orchestration.support_answer import SupportAnswer
-
-Check = Callable[[SupportAnswer, TestQuery], bool]
 
 
 def build_dataset_item(test_query: TestQuery) -> dict[str, Any]:
@@ -41,7 +39,7 @@ def adapt_check(
     name: str,
     check: Check,
     applies_to: Callable[[TestQuery], bool] = lambda test_query: True,
-):
+) -> Callable[..., list[Evaluation]]:
     """Wrap a Check as a Langfuse evaluator: its boolean becomes a BOOLEAN Evaluation called `name`.
 
     Where the Check does not apply to the Test Query, the evaluator returns no Evaluation.
@@ -57,16 +55,19 @@ def adapt_check(
     return evaluator
 
 
-def build_check_evaluators() -> list:
+def build_check_evaluators() -> list[Callable[..., list[Evaluation]]]:
     """The three Checks as evaluators, each applied only where it makes sense (ticket 06).
 
-    routing_correct: every Test Query. retrieval_hit: direct and frontier (an expected Section exists).
-    abstained: Test Queries with an Area (an out_of_scope Query never reaches a Specialist).
+    Evaluations carry a `check_` prefix so they never collide with the `abstained` score that
+    `answer_query` publishes on the same trace.
+    check_routing_correct: every Test Query. check_retrieval_hit: direct and frontier (an expected
+    Section exists). check_abstained: Test Queries with an Area (an out_of_scope Query never reaches
+    a Specialist).
     """
     return [
-        adapt_check("routing_correct", routing_correct),
-        adapt_check("retrieval_hit", retrieval_hit, applies_to=lambda test_query: test_query.is_answerable),
-        adapt_check("abstained", abstained, applies_to=lambda test_query: test_query.expected_area != "out_of_scope"),
+        adapt_check("check_routing_correct", routing_correct),
+        adapt_check("check_retrieval_hit", retrieval_hit, applies_to=lambda test_query: test_query.is_answerable),
+        adapt_check("check_abstained", abstained, applies_to=lambda test_query: test_query.expected_area != "out_of_scope"),
     ]
 
 
@@ -83,14 +84,11 @@ def upload_test_queries(langfuse: Langfuse, dataset_name: str, test_queries: Seq
         )
 
 
-def build_experiment_task(answer_query: Callable[[str], SupportAnswer]):
-    """The Experiment task: rebuild the Test Query from the Dataset item and answer its Query."""
+def build_experiment_task(answer_query: Callable[[str], SupportAnswer]) -> Callable[..., SupportAnswer]:
+    """The Experiment task: answer the Query held in the Dataset item's input."""
 
     def task(*, item: Any, **kwargs: Any) -> SupportAnswer:
-        test_query = rebuild_test_query(
-            input=item.input, expected_output=item.expected_output, metadata=item.metadata
-        )
-        return answer_query(test_query.query)
+        return answer_query(item.input)
 
     return task
 

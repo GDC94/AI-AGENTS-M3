@@ -3,12 +3,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from langchain_core.runnables import RunnableLambda
-from langchain_openai import OpenAIEmbeddings
 
 from orchestration.area import AREA_DESCRIPTIONS, Area
 from orchestration.config import load_settings
 from orchestration.judging import QualityVerdict, build_judge
-from orchestration.knowledge_base import build_retrieve, index_all_areas
 from orchestration.llm import build_chat_model
 from orchestration.multi_agent_system import build_answer_query, build_graph, build_specialists
 from orchestration.observability import LangfuseScorePublisher, init_langfuse
@@ -17,6 +15,7 @@ from orchestration.section import RetrievedSection
 from orchestration.specialists import NO_INFORMATION_MESSAGE, OUT_OF_SCOPE_MESSAGE
 from tests.doubles import RecordingFakeChatModel, RecordingScorePublisher
 from tests.keys import requires_keys
+from tests.samples import index_sample_document_for_every_area
 
 
 @pytest.fixture(autouse=True)
@@ -243,45 +242,6 @@ SPANISH_WORDS = {"el", "la", "los", "las", "de", "que", "en", "y", "es", "con", 
 def looks_spanish(text: str) -> bool:
     """Crude check: at least three common Spanish function words, no language-detection dependency."""
     return len(SPANISH_WORDS & set(text.lower().replace(",", " ").replace(".", " ").split())) >= 3
-
-
-# Test fixture with distinct HR topics, not an Atalaya Document.
-HR_SAMPLE_DOCUMENT = """# Sample HR handbook
-
-Version 1.0.
-
-## Annual leave
-
-Staff get 22 working days of annual leave per calendar year.
-Leave is requested in the HR portal at least two weeks in advance and approved by the line manager.
-
-## Parental leave
-
-Parents get 16 weeks of paid parental leave, which can start up to two weeks before the birth.
-
-## Performance reviews
-
-Performance reviews take place every March and September with the line manager.
-"""
-
-
-def index_sample_document_for_every_area(settings, api_key, tmp_path):
-    """Index HR_SAMPLE_DOCUMENT under every Area in a temporary Chroma and return the retrieve function per Area."""
-    data_dir = tmp_path / "data"
-    for area in Area:
-        (data_dir / f"{area.value}_docs").mkdir(parents=True)
-        (data_dir / f"{area.value}_docs" / "sample.md").write_text(HR_SAMPLE_DOCUMENT)
-    embeddings = OpenAIEmbeddings(model=settings.embedding_model, api_key=api_key)
-    persist_directory = tmp_path / ".chroma"
-    index_all_areas(
-        data_dir,
-        embeddings=embeddings,
-        embedding_model=settings.embedding_model,
-        chunk_max_tokens=settings.chunk_max_tokens,
-        chunk_overlap_tokens=settings.chunk_overlap_tokens,
-        persist_directory=persist_directory,
-    )
-    return {area: build_retrieve(area, settings.retrieval_top_k, embeddings, persist_directory) for area in Area}
 
 
 @pytest.mark.integration

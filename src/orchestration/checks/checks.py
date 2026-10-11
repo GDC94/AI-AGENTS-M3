@@ -1,7 +1,11 @@
 """The three Checks: pure, deterministic comparisons of a SupportAnswer with a Test Query."""
 
+from collections.abc import Callable
+
 from orchestration.checks.test_query import TestQuery
 from orchestration.support_answer import SupportAnswer
+
+Check = Callable[[SupportAnswer, TestQuery], bool]
 
 
 def routing_correct(answer: SupportAnswer, test_query: TestQuery) -> bool:
