@@ -31,5 +31,5 @@ class LangfuseScorePublisher:
                 name=name,
                 value=rating,
                 data_type="NUMERIC",
-                comment=verdict.reason,
+                comment=verdict.reason if name == "quality" else None,
             )

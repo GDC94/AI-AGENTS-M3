@@ -215,7 +215,7 @@ def fetch_observations_and_scores(langfuse, trace_id, expected_scores=1, attempt
         observations = langfuse.api.observations.get_many(
             trace_id=trace_id, from_start_time=since, fields="core,basic,io"
         ).data
-        scores = langfuse.api.scores_v3.get_many_v3(trace_id=trace_id).data
+        scores = langfuse.api.scores_v3.get_many_v3(trace_id=trace_id, fields="core,details").data
         if observations and len(scores) >= expected_scores:
             return observations, scores
         time.sleep(delay_seconds)
@@ -326,3 +326,6 @@ def test_real_judge_rates_a_grounded_answer_and_its_four_scores_reach_the_trace(
     published = {score.name: score.value for score in scores}
     assert {name: published[name] for name in result.verdict.ratings_by_name()} == result.verdict.ratings_by_name()
     assert published["abstained"] is False
+    comments = {score.name: score.comment for score in scores}
+    assert comments["quality"] == result.verdict.reason
+    assert all(comments[name] is None for name in ("relevance", "completeness", "accuracy"))
