@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Out of Scope end to end), 03 (Knowledge Base: index and retrieve).
 
-**Status:** ready-for-agent
+**Status:** done
 
 Scope (PRD "Specialists", "Flow and composition"; ADR 0002, ADR 0003):
 
@@ -13,9 +13,29 @@ Scope (PRD "Specialists", "Flow and composition"; ADR 0002, ADR 0003):
 - The three Area nodes of the graph call their Specialist; the placeholders from ticket 02 are replaced. The composition layer builds the three Specialists from the enum and the real retrieval callables and chat model.
 - `SupportAnswer` carries the Sections used and the `abstained` flag; the answering function publishes `abstained` 1 on Abstention and 0 on a grounded Answer.
 
-- [ ] Seam 1 test with a fake retrieval callable and a fake list chat model: Sections under the threshold are dropped before drafting.
-- [ ] Seam 1 test: when no Section survives, the Answer is the fixed no-information message, the chat model is never called, and one `abstained` score with value 1 is recorded.
-- [ ] Seam 1 test: when Sections survive, the chat model is called exactly once with those Sections in its input, the Answer is the model's text, the `SupportAnswer` lists those Sections, and `abstained` 0 is recorded.
-- [ ] Seam 1 test: the same behaviour holds when routed to each of the three Areas.
-- [ ] Integration test: against the persisted index from ticket 03 and the real Specialist model, a covered Query returns a grounded Answer citing the expected Section and an uncovered Query returns the Abstention.
-- [ ] Business packages still import no Langfuse, Chroma or LangGraph symbols.
+- [x] Seam 1 test with a fake retrieval callable and a fake list chat model: Sections under the threshold are dropped before drafting.
+- [x] Seam 1 test: when no Section survives, the Answer is the fixed no-information message, the chat model is never called, and one `abstained` score with value 1 is recorded.
+- [x] Seam 1 test: when Sections survive, the chat model is called exactly once with those Sections in its input, the Answer is the model's text, the `SupportAnswer` lists those Sections, and `abstained` 0 is recorded.
+- [x] Seam 1 test: the same behaviour holds when routed to each of the three Areas.
+- [x] Integration test: against the persisted index from ticket 03 and the real Specialist model, a covered Query returns a grounded Answer citing the expected Section and an uncovered Query returns the Abstention.
+- [x] Business packages still import no Langfuse, Chroma or LangGraph symbols.
+
+## Comments
+
+**2026-10-11, author:** approved.
+
+Implementer choices approved by the author:
+
+- No permanent index exists after ticket 03, so the integration test builds one the same way: an HR sample fixture, the real embedding model and Chroma persisted in a temporary directory.
+- The integration test uses a fixed Router that always returns hr, so a failure points at the Specialist; the real Router has its own integration test (ticket 02).
+- A Section whose Similarity equals the Similarity Threshold is kept; only Sections below it are dropped.
+- The Specialist prompt asks the model to cite each Section title in square brackets, for example `[Annual leave]`; titles are passed to the prompt explicitly.
+- `NO_INFORMATION_MESSAGE`: "Lo siento, la documentación disponible no cubre tu consulta. Te recomendamos contactar directamente al equipo correspondiente."
+- The composition layer exposes `build_specialists(retrieve_by_area, chat_model, threshold)`.
+- `tests/test_layering.py` guards that business packages import no Langfuse, Chroma or LangGraph.
+
+Findings:
+
+- Measured Similarities in the integration fixture against the 0.42 threshold: covered Query 0.654, uncovered Query 0.252.
+- Specialists are tested only through `answer_query`, as the PRD requires; a reviewer request for a separate `tests/specialists/` package was declined for that reason.
+- Test runs: 53 unit tests passed; 8 integration tests passed with real keys.
