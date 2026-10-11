@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 (Judge), 06 (Checks and threshold sweep).
 
-**Status:** ready-for-agent
+**Status:** done
 
 Scope (PRD "Checks and calibration", "Observability"):
 
@@ -35,3 +35,7 @@ Scope (PRD "Checks and calibration", "Observability"):
 
 - Experiment evaluations are prefixed `check_`: `check_routing_correct`, `check_retrieval_hit`, `check_abstained`. The `abstained` score published by `answer_query` (tickets 02/04) is unchanged. Reason: two scores named `abstained` on one trace doubled the counts and mixed Out of Scope traces into the Check's aggregate (the Check applies only to Test Queries with an Area). Each evaluation is produced only where its Check applies. The integration test now asserts `check_abstained` is stored for the unanswerable item and absent for the Out of Scope one.
 - Review fixes: the shared integration helper `index_sample_document_for_every_area` and `HR_SAMPLE_DOCUMENT` moved to `tests/samples.py` (no test module imports another); `build_experiment_task` uses the item's input directly; `observability/__init__.py` exports only `upload_test_queries`, `run_validation_experiment`, `init_langfuse`, `LangfuseScorePublisher`, `ScorePublisher` (adapters are imported from `observability.experiments`); the `Check` alias lives in `checks/`; return types added to `adapt_check` and `build_check_evaluators`; a `make_test_query` factory replaces the repeated `TestQuery(...)` constants in the tests.
+
+**Test runs after the fixes:** 132 unit tests passed; 10 integration tests passed.
+
+**Approval (2026-10-11):** the author approved ticket 07 with the `check_` prefix for the Experiment evaluations and the implementer choices as they stand (item id `<dataset>:<test_query.id>`, item input/expected output/metadata shape, applicability per ticket 06, `flush` in `finally` and timestamped run names, results read through `api.experiments.list_items`). PLAN.md 5.1 names the Checks only, not the `check_` evaluation names; left unchanged.
