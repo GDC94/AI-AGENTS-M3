@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel
 
+from orchestration.judging import QualityVerdict
 from orchestration.routing import Route
 from orchestration.section import RetrievedSection
 
@@ -12,6 +13,6 @@ class SupportAnswer(BaseModel):
     answer: str
     sections: list[RetrievedSection]
     abstained: bool
-    # Only None until the Judge exists (ticket 05 widens it to QualityVerdict | None).
-    verdict: None = None
+    # None for Abstentions and Out of Scope replies, which are never judged.
+    verdict: QualityVerdict | None = None
     trace_id: str

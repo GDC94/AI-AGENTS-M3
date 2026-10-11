@@ -83,7 +83,7 @@ def build_answer_query(
     judge: Runnable,
     publisher: ScorePublisher,
 ) -> Callable[[str], SupportAnswer]:
-    """Return answer_query: run the graph inside one Langfuse trace and publish the abstained score."""
+    """Return answer_query: run the graph inside one Langfuse trace, publish `abstained`, judge grounded Answers."""
 
     def answer_query(query: str) -> SupportAnswer:
         langfuse = get_client()
@@ -91,13 +91,25 @@ def build_answer_query(
             state = graph.invoke({"query": query}, config={"callbacks": [CallbackHandler()]})
             trace_id = span.trace_id
             publisher.publish_abstention(trace_id, state["abstained"])
+            verdict = None
+            if _is_grounded(state):
+                verdict = judge.invoke(
+                    {"query": query, "answer": state["answer"], "sections": state["sections"]}
+                )
+                publisher.publish_quality_scores(trace_id, verdict)
         return SupportAnswer(
             query=query,
             route=state["route"],
             answer=state["answer"],
             sections=state["sections"],
             abstained=state["abstained"],
+            verdict=verdict,
             trace_id=trace_id,
         )
 
     return answer_query
+
+
+def _is_grounded(state: SupportState) -> bool:
+    """Only a Specialist's grounded reply is judged: it has Sections and is not an Abstention."""
+    return not state["abstained"] and bool(state["sections"])
