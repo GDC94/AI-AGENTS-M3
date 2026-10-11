@@ -17,14 +17,11 @@ from orchestration.area import Area
 from orchestration.observability import ScorePublisher
 from orchestration.routing import Route, RouteTarget
 from orchestration.section import RetrievedSection
-from orchestration.specialists import OUT_OF_SCOPE_MESSAGE, Retrieve, SpecialistReply, build_specialist
+from orchestration.specialists import OUT_OF_SCOPE_MESSAGE, Retrieve, Specialist, build_specialist
 from orchestration.support_answer import SupportAnswer
 
 ROUTE_NODE = "route"
 OUT_OF_SCOPE_NODE = "out_of_scope"
-
-
-Specialist = Callable[[str], SpecialistReply]
 
 
 class SupportState(TypedDict, total=False):
@@ -65,11 +62,11 @@ def build_graph(
 
 
 def _specialist_node(specialist: Specialist) -> Callable[[SupportState], SupportState]:
-    def specialist_node(state: SupportState) -> SupportState:
+    def run_specialist(state: SupportState) -> SupportState:
         reply = specialist(state["query"])
         return {"answer": reply.answer, "sections": reply.sections, "abstained": reply.abstained}
 
-    return specialist_node
+    return run_specialist
 
 
 def build_specialists(

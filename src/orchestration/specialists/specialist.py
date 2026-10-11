@@ -11,6 +11,7 @@ from orchestration.area import AREA_DESCRIPTIONS, Area
 from orchestration.section import RetrievedSection
 
 Retrieve = Callable[[str], list[RetrievedSection]]
+Specialist = Callable[[str], "SpecialistReply"]
 
 NO_INFORMATION_MESSAGE = (
     "Lo siento, la documentación disponible no cubre tu consulta. "
@@ -49,7 +50,7 @@ def build_specialist(
     retrieve: Retrieve,
     chat_model: BaseChatModel,
     threshold: float,
-) -> Callable[[str], SpecialistReply]:
+) -> Specialist:
     """Retrieve, drop Sections under the threshold, then abstain or answer from the survivors.
 
     An Abstention never calls the model; a grounded Answer calls it exactly once.
@@ -57,15 +58,16 @@ def build_specialist(
     prompt = SPECIALIST_PROMPT.partial(area=area.value, area_description=AREA_DESCRIPTIONS[area])
     draft = prompt | chat_model | StrOutputParser()
 
-    def answer(query: str) -> SpecialistReply:
+    def reply_to_query(query: str) -> SpecialistReply:
         surviving = [section for section in retrieve(query) if section.similarity >= threshold]
         if not surviving:
             return SpecialistReply(answer=NO_INFORMATION_MESSAGE, sections=[], abstained=True)
         text = draft.invoke({"query": query, "sections": _format_sections(surviving)})
         return SpecialistReply(answer=text, sections=surviving, abstained=False)
 
-    return answer
+    return reply_to_query
 
 
 def _format_sections(sections: list[RetrievedSection]) -> str:
-    return "\n\n---\n\n".join(section.text for section in sections)
+    """Each Section with its title stated explicitly, so citations never depend on the text format."""
+    return "\n\n---\n\n".join(f"Section title: {section.title}\n{section.text}" for section in sections)

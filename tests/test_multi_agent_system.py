@@ -61,7 +61,8 @@ THRESHOLD = 0.42
 
 
 def section(title: str, similarity: float) -> RetrievedSection:
-    return RetrievedSection(title=title, text=f"## {title}\n\nWhat the {title} Section says.", similarity=similarity)
+    # The text deliberately omits the title, so tests can tell whether the title reaches the model.
+    return RetrievedSection(title=title, text=f"Section body with similarity {similarity}.", similarity=similarity)
 
 
 def retrieve_returning(*sections: RetrievedSection):
@@ -94,23 +95,37 @@ def test_no_section_above_the_threshold_gives_an_abstention_without_calling_the_
 
 @pytest.mark.parametrize("area", list(Area))
 def test_surviving_sections_ground_one_model_call_and_weaker_ones_are_dropped(area):
-    chat_model = RecordingFakeChatModel(responses=["You get 22 days of annual leave [Annual leave]."])
+    chat_model = RecordingFakeChatModel(responses=["You get 22 days of annual leave [Holiday entitlement]."])
     publisher = RecordingScorePublisher()
-    covered, weak = section("Annual leave", 0.80), section("Parental leave", 0.30)
+    covered, weak = section("Holiday entitlement", 0.80), section("Parental leave", 0.30)
     answer_query = answer_query_for_area(area, retrieve_returning(covered, weak), chat_model, publisher)
 
     result = answer_query("How many days of annual leave do I get?")
 
-    assert result.answer == "You get 22 days of annual leave [Annual leave]."
+    assert result.answer == "You get 22 days of annual leave [Holiday entitlement]."
     assert result.sections == [covered]
     assert result.abstained is False
     assert len(chat_model.received) == 1
     model_input = " ".join(message.content for message in chat_model.received[0])
+    assert covered.title in model_input
     assert covered.text in model_input
     assert weak.text not in model_input
     assert "How many days of annual leave do I get?" in model_input
     assert AREA_DESCRIPTIONS[area] in model_input
     assert publisher.abstentions == [(result.trace_id, False)]
+
+
+def test_a_section_exactly_at_the_threshold_is_kept():
+    chat_model = RecordingFakeChatModel(responses=["Grounded answer."])
+    at_threshold = section("Annual leave", THRESHOLD)
+    answer_query = answer_query_for_area(
+        Area.HR, retrieve_returning(at_threshold), chat_model, RecordingScorePublisher()
+    )
+
+    result = answer_query("How many days of annual leave do I get?")
+
+    assert result.sections == [at_threshold]
+    assert result.abstained is False
 
 
 @pytest.mark.integration
