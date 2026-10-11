@@ -28,6 +28,10 @@ def open_client(persist_directory: Path | str | None) -> ClientAPI:
     return chromadb.PersistentClient(path=str(persist_directory))
 
 
+def collection_exists(client: ClientAPI, area: Area) -> bool:
+    return collection_name(area) in {collection.name for collection in client.list_collections()}
+
+
 def open_vector_store(client: ClientAPI, area: Area, embeddings: Embeddings, embedding_model: str) -> Chroma:
     """Open the Area's collection, creating it with cosine distance and the model name if missing."""
     return Chroma(
@@ -48,9 +52,11 @@ def build_retrieve(
 
     No threshold is applied here, so calibration can see raw Similarities.
     """
-    store = Chroma(
-        client=open_client(persist_directory), collection_name=collection_name(area), embedding_function=embeddings
-    )
+    client = open_client(persist_directory)
+    # Opening a missing collection would silently create an empty one with Chroma's default L2 distance.
+    if not collection_exists(client, area):
+        raise ValueError(f"The {area.value} Knowledge Base has not been indexed; run index_all_areas first")
+    store = Chroma(client=client, collection_name=collection_name(area), embedding_function=embeddings)
 
     def retrieve(query: str) -> list[RetrievedSection]:
         results = store.similarity_search_with_score(query, k=top_k)

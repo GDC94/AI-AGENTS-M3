@@ -196,3 +196,19 @@ def test_real_embeddings_retrieve_the_expected_section_first(tmp_path):
 
     assert sections[0].title == "VPN access"
     assert sections[0].similarity > sections[-1].similarity
+
+
+def test_retrieving_from_an_area_that_was_never_indexed_is_refused():
+    with pytest.raises(ValueError, match="hr Knowledge Base"):
+        build(Area.HR, top_k=3)
+
+
+def test_force_keeps_the_old_knowledge_base_when_the_documents_cannot_be_read(data_dir):
+    index(data_dir)
+    for document in (data_dir / "hr_docs").glob("*.md"):
+        document.unlink()
+
+    with pytest.raises(ValueError, match="No Markdown Documents"):
+        index(data_dir, force=True)
+
+    assert len(stored_ids(Area.HR)) == 3
