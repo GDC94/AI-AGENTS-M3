@@ -62,21 +62,18 @@ def test_retrieval_miss_when_the_test_query_has_no_expected_section():
     assert retrieval_hit(make_answer(), query) is False
 
 
-def test_abstained_check_passes_for_an_abstained_unanswerable_query():
-    query = make_test_query(expected_section=None, type="unanswerable")
-
-    assert abstained(make_answer(titles=(), abstained=True), query) is True
+def test_abstained_is_true_when_the_answer_abstained():
+    assert abstained(make_answer(titles=(), abstained=True), make_test_query()) is True
 
 
-def test_abstained_check_fails_for_an_unanswerable_query_that_was_answered():
-    query = make_test_query(expected_section=None, type="unanswerable")
+def test_abstained_is_false_when_the_answer_is_grounded_whatever_the_type():
+    unanswerable = make_test_query(expected_section=None, type="unanswerable")
 
-    assert abstained(make_answer(abstained=False), query) is False
-
-
-def test_abstained_check_fails_for_an_answerable_query_that_abstained():
-    assert abstained(make_answer(titles=(), abstained=True), make_test_query()) is False
+    assert abstained(make_answer(abstained=False), make_test_query()) is False
+    assert abstained(make_answer(abstained=False), unanswerable) is False
 
 
-def test_abstained_check_passes_for_an_answerable_query_that_was_answered():
-    assert abstained(make_answer(abstained=False), make_test_query()) is True
+def test_routing_incorrect_for_an_out_of_scope_query_routed_to_an_area():
+    query = make_test_query(expected_area="out_of_scope", expected_section=None, type="out_of_scope")
+
+    assert routing_correct(make_answer(target="hr"), query) is False

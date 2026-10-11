@@ -32,19 +32,22 @@ def sweep_threshold(
     Uses the Specialist's rule: a Section is kept when its Similarity is >= the threshold.
     Out of Scope Test Queries never reach a Specialist, so they are ignored.
     """
-    answerable = [q for q in test_queries if q.type in ("direct", "frontier")]
-    unanswerable = [q for q in test_queries if q.type == "unanswerable"]
-    retrieved = {q.id: retrieve_by_area[Area(q.expected_area)](q.query) for q in [*answerable, *unanswerable]}
+    answerable = [test_query for test_query in test_queries if test_query.is_answerable]
+    unanswerable = [test_query for test_query in test_queries if test_query.is_unanswerable]
+    retrieved = {
+        test_query.id: retrieve_by_area[Area(test_query.expected_area)](test_query.query)
+        for test_query in [*answerable, *unanswerable]
+    }
 
     def survivors(test_query: TestQuery, threshold: float) -> list[str]:
-        return [s.title for s in retrieved[test_query.id] if s.similarity >= threshold]
+        return [section.title for section in retrieved[test_query.id] if section.similarity >= threshold]
 
     return [
         SweepPoint(
             threshold=threshold,
-            retrieval_hits=sum(q.expected_section in survivors(q, threshold) for q in answerable),
+            retrieval_hits=sum(test_query.expected_section in survivors(test_query, threshold) for test_query in answerable),
             answerable=len(answerable),
-            correct_abstentions=sum(not survivors(q, threshold) for q in unanswerable),
+            correct_abstentions=sum(not survivors(test_query, threshold) for test_query in unanswerable),
             unanswerable=len(unanswerable),
         )
         for threshold in thresholds

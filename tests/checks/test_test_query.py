@@ -74,3 +74,37 @@ def test_loader_rejects_an_unknown_requested_split(tmp_path):
 
     with pytest.raises(ValueError):
         load_test_queries(path, "holdout")
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        # out_of_scope type without the out_of_scope Area
+        {"type": "out_of_scope", "expected_section": None},
+        # out_of_scope Area on a type that reaches a Specialist
+        {"expected_area": "out_of_scope", "expected_section": None},
+        # direct or frontier without an expected Section
+        {"type": "direct", "expected_section": None},
+        {"type": "frontier", "expected_section": None},
+        # unanswerable with an expected Section
+        {"type": "unanswerable", "expected_section": "Vacaciones"},
+        # out_of_scope with an expected Section
+        {"type": "out_of_scope", "expected_area": "out_of_scope"},
+    ],
+)
+def test_loader_rejects_inconsistent_type_area_and_section(tmp_path, bad):
+    path = write_file(tmp_path, [make_item(**bad)])
+
+    with pytest.raises(ValidationError):
+        load_test_queries(path, "calibration")
+
+
+def test_loader_accepts_the_consistent_combinations(tmp_path):
+    items = [
+        make_item("a", type="direct"),
+        make_item("b", type="frontier"),
+        make_item("c", type="unanswerable", expected_section=None),
+        make_item("d", type="out_of_scope", expected_area="out_of_scope", expected_section=None),
+    ]
+
+    assert len(load_test_queries(write_file(tmp_path, items), "calibration")) == 4

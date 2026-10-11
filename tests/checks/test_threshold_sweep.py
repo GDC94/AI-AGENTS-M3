@@ -77,3 +77,30 @@ def test_each_query_is_retrieved_once_from_its_expected_area_only():
 
     assert hr.calls == ["query hr-01"]
     assert tech.calls == []
+
+
+def never_called(query):
+    raise AssertionError(f"retrieval must not run for {query!r}")
+
+
+def test_out_of_scope_queries_are_ignored_and_never_retrieved():
+    test_queries = [make_test_query("oos-01", "out_of_scope", "out_of_scope")]
+
+    [point] = sweep_threshold({Area.HR: never_called}, test_queries, [0.5])
+
+    assert point == SweepPoint(threshold=0.5, retrieval_hits=0, answerable=0, correct_abstentions=0, unanswerable=0)
+
+
+def test_a_sweep_with_only_a_frontier_query_counts_it_as_answerable():
+    retrieve_by_area = {Area.TECH: fake_retrieve(("Exportar", 0.6))}
+    test_queries = [make_test_query("tech-01", "tech", "frontier", "Exportar")]
+
+    [point] = sweep_threshold(retrieve_by_area, test_queries, [0.5])
+
+    assert (point.retrieval_hits, point.answerable, point.unanswerable) == (1, 1, 0)
+
+
+def test_no_thresholds_gives_no_points():
+    test_queries = [make_test_query("hr-01", "hr", "direct", "Vacaciones")]
+
+    assert sweep_threshold({Area.HR: fake_retrieve(("Vacaciones", 0.6))}, test_queries, []) == []

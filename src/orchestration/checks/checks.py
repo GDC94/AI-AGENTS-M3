@@ -17,5 +17,10 @@ def retrieval_hit(answer: SupportAnswer, test_query: TestQuery) -> bool:
 
 
 def abstained(answer: SupportAnswer, test_query: TestQuery) -> bool:
-    """The Answer abstained exactly when the Test Query is unanswerable (it passes when they agree)."""
-    return answer.abstained == (test_query.type == "unanswerable")
+    """Whether the Specialist abstained. A raw observation: it ignores the Test Query's expectation.
+
+    Expected true for unanswerable Test Queries with an Area and false for the rest. Like
+    `retrieval_hit`, it applies only where it makes sense (Test Queries with an Area); the
+    caller decides, because an out_of_scope Query never reaches a Specialist.
+    """
+    return answer.abstained

@@ -99,8 +99,8 @@ A support routing system built with LangChain and LangGraph, traced in Langfuse:
 
 ### Checks and calibration
 
-- A `TestQuery` has an id, the Query text, the expected Area (or out_of_scope), the expected Section title (absent for out_of_scope and unanswerable), the Asker kind, a type (direct, frontier, out_of_scope, unanswerable) and a split (calibration or validation). A loader reads the JSON file and filters by split.
-- Three Checks, pure functions from a `SupportAnswer` and a `TestQuery` to a boolean: routing correct (target equals expected Area), retrieval hit (expected Section among the Sections used), abstained (true exactly for unanswerable Test Queries with an Area).
+- A `TestQuery` has an id, the Query text, the expected Area (or out_of_scope), the expected Section title (absent for out_of_scope and unanswerable), the Asker kind, a type (direct, frontier, out_of_scope, unanswerable) and a split (calibration or validation). A loader reads the JSON file and filters by split. A `TestQuery` rejects inconsistent fields on load: type out_of_scope if and only if expected Area out_of_scope, and an expected Section if and only if type is direct or frontier.
+- Three Checks, pure functions from a `SupportAnswer` and a `TestQuery` to a boolean: routing correct (target equals expected Area), retrieval hit (expected Section among the Sections used), abstained (a raw observation: true when the Specialist abstained; expected true for unanswerable Test Queries with an Area and false for the rest, and applied only to Test Queries with an Area).
 - The threshold sweep is a pure function over per-Area retrieval callables, the calibration Test Queries and a list of candidate thresholds, returning one point per threshold. It calls no model and creates no traces. Writing the sweep output file is the notebook's job.
 - The final measurement uploads the validation Test Queries as a Langfuse Dataset and runs a Langfuse Experiment whose task is the answering function and whose evaluators adapt the three Checks. The observability package only adapts; it holds no Check logic.
 

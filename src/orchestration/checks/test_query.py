@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Literal, get_args
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, model_validator
 
 from orchestration.routing import RouteTarget
 
@@ -24,6 +24,24 @@ class TestQuery(BaseModel):
     asker: AskerKind
     type: QueryType
     split: Split
+
+    @model_validator(mode="after")
+    def check_fields_agree(self) -> "TestQuery":
+        if (self.type == "out_of_scope") != (self.expected_area == "out_of_scope"):
+            raise ValueError("type is out_of_scope if and only if expected_area is out_of_scope")
+        if (self.expected_section is not None) != self.is_answerable:
+            raise ValueError("expected_section is present if and only if type is direct or frontier")
+        return self
+
+    @property
+    def is_answerable(self) -> bool:
+        """The Knowledge Base holds the answer (direct or frontier)."""
+        return self.type in ("direct", "frontier")
+
+    @property
+    def is_unanswerable(self) -> bool:
+        """The Query has an Area but its Knowledge Base holds no answer."""
+        return self.type == "unanswerable"
 
 
 def load_test_queries(path: Path | str, split: Split) -> list[TestQuery]:
