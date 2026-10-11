@@ -4,8 +4,9 @@ This module holds wiring only; every prompt lives in its own package (ADR 0003).
 """
 
 from collections.abc import Callable, Mapping
-from typing import Any, TypedDict, get_args
+from typing import TypedDict, get_args
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable
 from langfuse import get_client
 from langfuse.langchain import CallbackHandler
@@ -16,11 +17,14 @@ from orchestration.area import Area
 from orchestration.observability import ScorePublisher
 from orchestration.routing import Route, RouteTarget
 from orchestration.section import RetrievedSection
-from orchestration.specialists import OUT_OF_SCOPE_MESSAGE
+from orchestration.specialists import OUT_OF_SCOPE_MESSAGE, Retrieve, SpecialistReply, build_specialist
 from orchestration.support_answer import SupportAnswer
 
 ROUTE_NODE = "route"
 OUT_OF_SCOPE_NODE = "out_of_scope"
+
+
+Specialist = Callable[[str], SpecialistReply]
 
 
 class SupportState(TypedDict, total=False):
@@ -33,7 +37,7 @@ class SupportState(TypedDict, total=False):
 
 def build_graph(
     router: Runnable[str, Route],
-    specialists: Mapping[Area, Callable[[str], Any]],
+    specialists: Mapping[Area, Specialist],
 ) -> CompiledStateGraph:
     """Route node, a conditional edge on Route.target, one node per Area and an out-of-scope node."""
 
@@ -46,7 +50,7 @@ def build_graph(
     graph = StateGraph(SupportState)
     graph.add_node(ROUTE_NODE, route)
     for area in Area:
-        graph.add_node(area.value, _placeholder_specialist_node(area))
+        graph.add_node(area.value, _specialist_node(specialists[area]))
         graph.add_edge(area.value, END)
     graph.add_node(OUT_OF_SCOPE_NODE, reply_out_of_scope)
     graph.add_edge(START, ROUTE_NODE)
@@ -60,12 +64,21 @@ def build_graph(
     return graph.compile()
 
 
-def _placeholder_specialist_node(area: Area) -> Callable[[SupportState], SupportState]:
-    # Replaced by the real Specialist node in ticket 04.
+def _specialist_node(specialist: Specialist) -> Callable[[SupportState], SupportState]:
     def specialist_node(state: SupportState) -> SupportState:
-        raise NotImplementedError(f"The '{area.value}' Specialist node is not implemented yet")
+        reply = specialist(state["query"])
+        return {"answer": reply.answer, "sections": reply.sections, "abstained": reply.abstained}
 
     return specialist_node
+
+
+def build_specialists(
+    retrieve_by_area: Mapping[Area, Retrieve],
+    chat_model: BaseChatModel,
+    threshold: float,
+) -> dict[Area, Specialist]:
+    """One Specialist per Area, all sharing the chat model and the Similarity Threshold."""
+    return {area: build_specialist(area, retrieve_by_area[area], chat_model, threshold) for area in Area}
 
 
 def build_answer_query(

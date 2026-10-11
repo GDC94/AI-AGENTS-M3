@@ -3,15 +3,18 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from langchain_core.runnables import RunnableLambda
+from langchain_openai import OpenAIEmbeddings
 
-from orchestration.area import Area
+from orchestration.area import AREA_DESCRIPTIONS, Area
 from orchestration.config import load_settings
+from orchestration.knowledge_base import build_retrieve, index_all_areas
 from orchestration.llm import build_chat_model
-from orchestration.multi_agent_system import build_answer_query, build_graph
+from orchestration.multi_agent_system import build_answer_query, build_graph, build_specialists
 from orchestration.observability import LangfuseScorePublisher, init_langfuse
 from orchestration.routing import Route, build_router
-from orchestration.specialists import OUT_OF_SCOPE_MESSAGE
-from tests.doubles import RecordingScorePublisher
+from orchestration.section import RetrievedSection
+from orchestration.specialists import NO_INFORMATION_MESSAGE, OUT_OF_SCOPE_MESSAGE
+from tests.doubles import RecordingFakeChatModel, RecordingScorePublisher
 from tests.keys import requires_keys
 
 
@@ -54,13 +57,60 @@ def test_out_of_scope_query_gets_the_fixed_message_without_specialist_or_judge()
     assert publisher.abstentions == [(result.trace_id, False)]
 
 
-@pytest.mark.parametrize("area", list(Area))
-def test_each_area_route_reaches_its_own_node(area):
-    publisher = RecordingScorePublisher()
-    answer_query = build_answer_query_with(router_returning(area.value), publisher)
+THRESHOLD = 0.42
 
-    with pytest.raises(NotImplementedError, match=f"'{area.value}' Specialist node"):
-        answer_query("Any question for this Area")
+
+def section(title: str, similarity: float) -> RetrievedSection:
+    return RetrievedSection(title=title, text=f"## {title}\n\nWhat the {title} Section says.", similarity=similarity)
+
+
+def retrieve_returning(*sections: RetrievedSection):
+    return lambda query: list(sections)
+
+
+def answer_query_for_area(area: Area, retrieve, chat_model, publisher):
+    retrieve_by_area = {other: failing_double(f"{other} retrieval") for other in Area} | {area: retrieve}
+    specialists = build_specialists(retrieve_by_area, chat_model, THRESHOLD)
+    judge = RunnableLambda(failing_double("Judge"))
+    return build_answer_query(build_graph(router_returning(area.value), specialists), judge, publisher)
+
+
+@pytest.mark.parametrize("area", list(Area))
+def test_no_section_above_the_threshold_gives_an_abstention_without_calling_the_model(area):
+    chat_model = RecordingFakeChatModel(responses=["must not be used"])
+    publisher = RecordingScorePublisher()
+    retrieve = retrieve_returning(section("Annual leave", 0.30), section("Parental leave", 0.41))
+    answer_query = answer_query_for_area(area, retrieve, chat_model, publisher)
+
+    result = answer_query("How do I request a sabbatical?")
+
+    assert result.answer == NO_INFORMATION_MESSAGE
+    assert result.sections == []
+    assert result.abstained is True
+    assert result.verdict is None
+    assert chat_model.received == []
+    assert publisher.abstentions == [(result.trace_id, True)]
+
+
+@pytest.mark.parametrize("area", list(Area))
+def test_surviving_sections_ground_one_model_call_and_weaker_ones_are_dropped(area):
+    chat_model = RecordingFakeChatModel(responses=["You get 22 days of annual leave [Annual leave]."])
+    publisher = RecordingScorePublisher()
+    covered, weak = section("Annual leave", 0.80), section("Parental leave", 0.30)
+    answer_query = answer_query_for_area(area, retrieve_returning(covered, weak), chat_model, publisher)
+
+    result = answer_query("How many days of annual leave do I get?")
+
+    assert result.answer == "You get 22 days of annual leave [Annual leave]."
+    assert result.sections == [covered]
+    assert result.abstained is False
+    assert len(chat_model.received) == 1
+    model_input = " ".join(message.content for message in chat_model.received[0])
+    assert covered.text in model_input
+    assert weak.text not in model_input
+    assert "How many days of annual leave do I get?" in model_input
+    assert AREA_DESCRIPTIONS[area] in model_input
+    assert publisher.abstentions == [(result.trace_id, False)]
 
 
 @pytest.mark.integration
@@ -114,3 +164,64 @@ def fetch_observations_and_scores(langfuse, trace_id, attempts=15, delay_seconds
             return observations, scores
         time.sleep(delay_seconds)
     pytest.fail(f"observations and scores of trace {trace_id} not readable from Langfuse")
+
+
+# Test fixture with distinct HR topics, not an Atalaya Document.
+HR_SAMPLE_DOCUMENT = """# Sample HR handbook
+
+Version 1.0.
+
+## Annual leave
+
+Staff get 22 working days of annual leave per calendar year.
+Leave is requested in the HR portal at least two weeks in advance and approved by the line manager.
+
+## Parental leave
+
+Parents get 16 weeks of paid parental leave, which can start up to two weeks before the birth.
+
+## Performance reviews
+
+Performance reviews take place every March and September with the line manager.
+"""
+
+
+@pytest.mark.integration
+@requires_keys("OPENAI_API_KEY")
+def test_real_specialist_answers_a_covered_query_and_abstains_on_an_uncovered_one(tmp_path):
+    settings = load_settings()
+    api_key = settings.openai_api_key.get_secret_value()
+    data_dir = tmp_path / "data"
+    for area in Area:
+        (data_dir / f"{area.value}_docs").mkdir(parents=True)
+        (data_dir / f"{area.value}_docs" / "sample.md").write_text(HR_SAMPLE_DOCUMENT)
+    embeddings = OpenAIEmbeddings(model=settings.embedding_model, api_key=api_key)
+    persist_directory = tmp_path / ".chroma"
+    index_all_areas(
+        data_dir,
+        embeddings=embeddings,
+        embedding_model=settings.embedding_model,
+        chunk_max_tokens=settings.chunk_max_tokens,
+        chunk_overlap_tokens=settings.chunk_overlap_tokens,
+        persist_directory=persist_directory,
+    )
+    retrieve_by_area = {
+        area: build_retrieve(area, settings.retrieval_top_k, embeddings, persist_directory) for area in Area
+    }
+    chat_model = build_chat_model(settings.specialist_model, api_key=api_key, temperature=settings.llm_temperature)
+    specialists = build_specialists(retrieve_by_area, chat_model, settings.similarity_threshold)
+    answer_query = build_answer_query(
+        build_graph(router_returning("hr"), specialists),
+        RunnableLambda(failing_double("Judge")),
+        RecordingScorePublisher(),
+    )
+
+    covered = answer_query("How many days of annual leave do I get per year?")
+    uncovered = answer_query("Can I bring my dog to the office?")
+
+    assert covered.abstained is False
+    assert covered.sections[0].title == "Annual leave"
+    assert "22" in covered.answer
+    assert "[Annual leave]" in covered.answer
+    assert uncovered.abstained is True
+    assert uncovered.answer == NO_INFORMATION_MESSAGE
