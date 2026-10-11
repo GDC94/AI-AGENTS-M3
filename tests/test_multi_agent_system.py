@@ -1,4 +1,5 @@
 import time
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from langchain_core.runnables import RunnableLambda
@@ -90,21 +91,26 @@ def test_off_topic_query_produces_a_langfuse_trace_with_abstained_score():
 
     assert result.route.target == "out_of_scope"
     assert result.answer == OUT_OF_SCOPE_MESSAGE
-    trace = fetch_trace_with_scores(langfuse, result.trace_id)
-    abstained = [score for score in trace.scores if score.name == "abstained"]
+    observations, scores = fetch_observations_and_scores(langfuse, result.trace_id)
+    abstained = [score for score in scores if score.name == "abstained"]
     assert len(abstained) == 1
-    assert abstained[0].value == 0
-    assert result.route.reasoning in str(trace.observations)
+    assert abstained[0].value is False
+    assert result.route.reasoning in " ".join(str(observation.output) for observation in observations)
 
 
-def fetch_trace_with_scores(langfuse, trace_id, attempts=15, delay_seconds=2.0):
-    """Langfuse ingests asynchronously: poll until the trace and its scores are readable."""
+def fetch_observations_and_scores(langfuse, trace_id, attempts=15, delay_seconds=2.0):
+    """Poll Langfuse until the trace's observations and scores are readable.
+
+    Organizations created after 2026-09-16 cannot use the legacy traces API, so this
+    reads through the v2 observations and v3 scores endpoints.
+    """
+    since = datetime.now(UTC) - timedelta(hours=1)
     for _ in range(attempts):
-        try:
-            trace = langfuse.api.trace.get(trace_id)
-        except Exception:
-            trace = None
-        if trace is not None and trace.scores:
-            return trace
+        observations = langfuse.api.observations.get_many(
+            trace_id=trace_id, from_start_time=since, fields="core,basic,io"
+        ).data
+        scores = langfuse.api.scores_v3.get_many_v3(trace_id=trace_id).data
+        if observations and scores:
+            return observations, scores
         time.sleep(delay_seconds)
-    pytest.fail(f"trace {trace_id} with scores not readable from Langfuse")
+    pytest.fail(f"observations and scores of trace {trace_id} not readable from Langfuse")
