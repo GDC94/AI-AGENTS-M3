@@ -197,15 +197,30 @@ def test_off_topic_query_produces_a_langfuse_trace_with_abstained_score():
 
     assert result.route.target == "out_of_scope"
     assert result.answer == OUT_OF_SCOPE_MESSAGE
-    observations, scores = fetch_observations_and_scores(langfuse, result.trace_id)
+    observations, scores = fetch_observations_and_scores(
+        langfuse,
+        result.trace_id,
+        ready=lambda observations, scores: (
+            any(score.name == "abstained" for score in scores)
+            and result.route.reasoning in join_observation_outputs(observations)
+        ),
+    )
     abstained = [score for score in scores if score.name == "abstained"]
     assert len(abstained) == 1
     assert abstained[0].value is False
-    assert result.route.reasoning in " ".join(str(observation.output) for observation in observations)
+    assert result.route.reasoning in join_observation_outputs(observations)
 
 
-def fetch_observations_and_scores(langfuse, trace_id, expected_scores=1, attempts=15, delay_seconds=2.0):
-    """Poll Langfuse until the trace's observations and scores are readable.
+def join_observation_outputs(observations) -> str:
+    return " ".join(str(observation.output) for observation in observations)
+
+
+def fetch_observations_and_scores(langfuse, trace_id, ready, attempts=15, delay_seconds=2.0):
+    """Poll Langfuse until `ready(observations, scores)` is True, then return both lists.
+
+    Langfuse lists the observations and scores before it fills in the observations'
+    outputs, so "something is listed" is not enough: each caller passes a `ready`
+    predicate that checks exactly the data it is going to assert.
 
     Organizations created after 2026-09-16 cannot use the legacy traces API, so this
     reads through the v2 observations and v3 scores endpoints.
@@ -216,10 +231,10 @@ def fetch_observations_and_scores(langfuse, trace_id, expected_scores=1, attempt
             trace_id=trace_id, from_start_time=since, fields="core,basic,io"
         ).data
         scores = langfuse.api.scores_v3.get_many_v3(trace_id=trace_id, fields="core,details").data
-        if observations and len(scores) >= expected_scores:
+        if ready(observations, scores):
             return observations, scores
         time.sleep(delay_seconds)
-    pytest.fail(f"observations and scores of trace {trace_id} not readable from Langfuse")
+    pytest.fail(f"data asserted by the test never became readable in Langfuse for trace {trace_id}")
 
 
 SPANISH_WORDS = {"el", "la", "los", "las", "de", "que", "en", "y", "es", "con", "por", "para", "una", "se"}
@@ -322,7 +337,15 @@ def test_real_judge_rates_a_grounded_answer_and_its_four_scores_reach_the_trace(
     assert result.verdict is not None
     assert all(1 <= rating <= 10 for rating in result.verdict.ratings_by_name().values())
     assert looks_spanish(result.verdict.reason), result.verdict.reason
-    _, scores = fetch_observations_and_scores(langfuse, result.trace_id, expected_scores=5)
+    expected_names = {*result.verdict.ratings_by_name(), "abstained"}
+    _, scores = fetch_observations_and_scores(
+        langfuse,
+        result.trace_id,
+        ready=lambda observations, scores: (
+            expected_names <= {score.name for score in scores}
+            and any(score.name == "quality" and score.comment == result.verdict.reason for score in scores)
+        ),
+    )
     published = {score.name: score.value for score in scores}
     assert {name: published[name] for name in result.verdict.ratings_by_name()} == result.verdict.ratings_by_name()
     assert published["abstained"] is False
