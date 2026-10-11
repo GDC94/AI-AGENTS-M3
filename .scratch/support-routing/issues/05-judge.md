@@ -33,3 +33,9 @@ Scope (PRD "Judge", "Observability"; ADR 0003):
 - The Spanish check in the integration test is a crude stopword heuristic (no language-detection dependency added).
 
 **Test runs:** 85 unit tests passed; 9 integration tests passed with real keys (one earlier integration run had one unidentified failure that did not reproduce in three later runs).
+
+**Review fixes:**
+
+- `QualityVerdict.ratings_by_name()` is now the single source of the four Rating names (derived from the model fields, minus `reason`). `LangfuseScorePublisher` iterates it. Named after Ratings, not Dimensions, because `quality` is the overall Rating, not a Dimension (CONTEXT.md). The `publish_quality_scores(trace_id, verdict)` port is unchanged.
+- `RecordingScorePublisher` now records ordered `(trace_id, name, value)` entries, so the seam-1 test asserts `abstained` 0 followed by the four named scores with their values.
+- The grounded-answer test reuses `answer_query_for_area`; the two real-model integration tests share `index_sample_document_for_every_area`.

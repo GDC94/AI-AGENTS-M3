@@ -15,6 +15,15 @@ def test_a_verdict_keeps_its_four_ratings_and_reason():
     assert result.reason == "Respuesta correcta."
 
 
+def test_a_verdict_lists_its_four_ratings_by_name():
+    assert QualityVerdict(**verdict()).ratings_by_name() == {
+        "quality": 8,
+        "relevance": 9,
+        "completeness": 7,
+        "accuracy": 10,
+    }
+
+
 @pytest.mark.parametrize("rating", [1, 10])
 def test_the_boundary_ratings_are_accepted(rating):
     assert QualityVerdict(**verdict(quality=rating)).quality == rating

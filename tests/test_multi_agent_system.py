@@ -55,8 +55,7 @@ def test_out_of_scope_query_gets_the_fixed_message_without_specialist_or_judge()
     assert result.sections == []
     assert result.abstained is False
     assert result.verdict is None
-    assert publisher.abstentions == [(result.trace_id, False)]
-    assert publisher.qualities == []
+    assert publisher.scores == [(result.trace_id, "abstained", 0)]
 
 
 THRESHOLD = 0.42
@@ -89,12 +88,13 @@ def test_a_grounded_answer_is_judged_once_and_its_quality_scores_follow_the_abst
     chat_model = RecordingFakeChatModel(responses=["You get 22 days [Holiday entitlement]."])
     publisher = RecordingScorePublisher()
     covered = section("Holiday entitlement", 0.80)
-    retrieve_by_area = {area: failing_double(f"{area} retrieval") for area in Area} | {
-        Area.HR: retrieve_returning(covered, section("Parental leave", 0.30))
-    }
-    specialists = build_specialists(retrieve_by_area, chat_model, THRESHOLD)
-    graph = build_graph(router_returning("hr"), specialists)
-    answer_query = build_answer_query(graph, RunnableLambda(judge_fixed), publisher)
+    answer_query = answer_query_for_area(
+        Area.HR,
+        retrieve_returning(covered, section("Parental leave", 0.30)),
+        chat_model,
+        publisher,
+        judge=RunnableLambda(judge_fixed),
+    )
 
     result = answer_query("How many days of annual leave do I get?")
 
@@ -106,9 +106,13 @@ def test_a_grounded_answer_is_judged_once_and_its_quality_scores_follow_the_abst
         }
     ]
     assert result.verdict == VERDICT
-    assert publisher.qualities == [(result.trace_id, VERDICT)]
-    assert publisher.abstentions == [(result.trace_id, False)]
-    assert publisher.published == ["abstained", "quality"]
+    assert publisher.scores == [
+        (result.trace_id, "abstained", 0),
+        (result.trace_id, "quality", 8),
+        (result.trace_id, "relevance", 9),
+        (result.trace_id, "completeness", 7),
+        (result.trace_id, "accuracy", 10),
+    ]
 
 
 @pytest.mark.parametrize("area", list(Area))
@@ -127,8 +131,7 @@ def test_no_section_above_the_threshold_gives_an_abstention_without_calling_the_
     assert result.abstained is True
     assert result.verdict is None
     assert chat_model.received == []
-    assert publisher.abstentions == [(result.trace_id, True)]
-    assert publisher.qualities == []
+    assert publisher.scores == [(result.trace_id, "abstained", 1)]
 
 
 @pytest.mark.parametrize("area", list(Area))
@@ -150,7 +153,7 @@ def test_surviving_sections_ground_one_model_call_and_weaker_ones_are_dropped(ar
     assert weak.text not in model_input
     assert "How many days of annual leave do I get?" in model_input
     assert AREA_DESCRIPTIONS[area] in model_input
-    assert publisher.abstentions == [(result.trace_id, False)]
+    assert publisher.scores[0] == (result.trace_id, "abstained", 0)
 
 
 def test_a_section_exactly_at_the_threshold_is_kept():
@@ -247,11 +250,8 @@ Performance reviews take place every March and September with the line manager.
 """
 
 
-@pytest.mark.integration
-@requires_keys("OPENAI_API_KEY")
-def test_real_specialist_answers_a_covered_query_and_abstains_on_an_uncovered_one(tmp_path):
-    settings = load_settings()
-    api_key = settings.openai_api_key.get_secret_value()
+def index_sample_document_for_every_area(settings, api_key, tmp_path):
+    """Index HR_SAMPLE_DOCUMENT under every Area in a temporary Chroma and return the retrieve function per Area."""
     data_dir = tmp_path / "data"
     for area in Area:
         (data_dir / f"{area.value}_docs").mkdir(parents=True)
@@ -266,9 +266,15 @@ def test_real_specialist_answers_a_covered_query_and_abstains_on_an_uncovered_on
         chunk_overlap_tokens=settings.chunk_overlap_tokens,
         persist_directory=persist_directory,
     )
-    retrieve_by_area = {
-        area: build_retrieve(area, settings.retrieval_top_k, embeddings, persist_directory) for area in Area
-    }
+    return {area: build_retrieve(area, settings.retrieval_top_k, embeddings, persist_directory) for area in Area}
+
+
+@pytest.mark.integration
+@requires_keys("OPENAI_API_KEY")
+def test_real_specialist_answers_a_covered_query_and_abstains_on_an_uncovered_one(tmp_path):
+    settings = load_settings()
+    api_key = settings.openai_api_key.get_secret_value()
+    retrieve_by_area = index_sample_document_for_every_area(settings, api_key, tmp_path)
     chat_model = build_chat_model(settings.specialist_model, api_key=api_key, temperature=settings.llm_temperature)
     specialists = build_specialists(retrieve_by_area, chat_model, settings.similarity_threshold)
     answer_query = build_answer_query(
@@ -298,23 +304,7 @@ def test_real_judge_rates_a_grounded_answer_and_its_four_scores_reach_the_trace(
         settings.langfuse_secret_key.get_secret_value(),
         settings.langfuse_host,
     )
-    data_dir = tmp_path / "data"
-    for area in Area:
-        (data_dir / f"{area.value}_docs").mkdir(parents=True)
-        (data_dir / f"{area.value}_docs" / "sample.md").write_text(HR_SAMPLE_DOCUMENT)
-    embeddings = OpenAIEmbeddings(model=settings.embedding_model, api_key=api_key)
-    persist_directory = tmp_path / ".chroma"
-    index_all_areas(
-        data_dir,
-        embeddings=embeddings,
-        embedding_model=settings.embedding_model,
-        chunk_max_tokens=settings.chunk_max_tokens,
-        chunk_overlap_tokens=settings.chunk_overlap_tokens,
-        persist_directory=persist_directory,
-    )
-    retrieve_by_area = {
-        area: build_retrieve(area, settings.retrieval_top_k, embeddings, persist_directory) for area in Area
-    }
+    retrieve_by_area = index_sample_document_for_every_area(settings, api_key, tmp_path)
     specialists = build_specialists(
         retrieve_by_area,
         build_chat_model(settings.specialist_model, api_key=api_key, temperature=settings.llm_temperature),
@@ -330,14 +320,9 @@ def test_real_judge_rates_a_grounded_answer_and_its_four_scores_reach_the_trace(
 
     assert result.abstained is False
     assert result.verdict is not None
-    assert all(1 <= rating <= 10 for rating in (
-        result.verdict.quality, result.verdict.relevance, result.verdict.completeness, result.verdict.accuracy
-    ))
+    assert all(1 <= rating <= 10 for rating in result.verdict.ratings_by_name().values())
     assert looks_spanish(result.verdict.reason), result.verdict.reason
     _, scores = fetch_observations_and_scores(langfuse, result.trace_id, expected_scores=5)
     published = {score.name: score.value for score in scores}
-    assert published["quality"] == result.verdict.quality
-    assert published["relevance"] == result.verdict.relevance
-    assert published["completeness"] == result.verdict.completeness
-    assert published["accuracy"] == result.verdict.accuracy
+    assert {name: published[name] for name in result.verdict.ratings_by_name()} == result.verdict.ratings_by_name()
     assert published["abstained"] is False

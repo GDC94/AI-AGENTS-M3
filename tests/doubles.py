@@ -8,20 +8,17 @@ from orchestration.judging import QualityVerdict
 
 
 class RecordingScorePublisher:
-    """In-memory ScorePublisher that records every published score."""
+    """In-memory ScorePublisher that records every published score as (trace_id, name, value), in order."""
 
     def __init__(self) -> None:
-        self.abstentions: list[tuple[str, bool]] = []
-        self.qualities: list[tuple[str, QualityVerdict]] = []
-        self.published: list[str] = []
+        self.scores: list[tuple[str, str, int]] = []
 
     def publish_abstention(self, trace_id: str, abstained: bool) -> None:
-        self.abstentions.append((trace_id, abstained))
-        self.published.append("abstained")
+        self.scores.append((trace_id, "abstained", 1 if abstained else 0))
 
     def publish_quality_scores(self, trace_id: str, verdict: QualityVerdict) -> None:
-        self.qualities.append((trace_id, verdict))
-        self.published.append("quality")
+        for name, rating in verdict.ratings_by_name().items():
+            self.scores.append((trace_id, name, rating))
 
 
 class RecordingFakeChatModel(FakeListChatModel):

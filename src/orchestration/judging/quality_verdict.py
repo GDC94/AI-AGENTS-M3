@@ -20,3 +20,10 @@ class QualityVerdict(BaseModel):
     relevance: Rating = Field(description="Dimension: does the Answer address what the Query asks.")
     completeness: Rating = Field(description="Dimension: does the Answer cover everything the Sections say about it.")
     accuracy: Rating = Field(description="Dimension: is every claim supported by the Sections used.")
+
+    def ratings_by_name(self) -> dict[str, int]:
+        """Every Rating under its field name (quality, relevance, completeness, accuracy), in field order.
+
+        Named after the Ratings, not the Dimensions: `quality` is the overall Rating, not a Dimension.
+        """
+        return {name: getattr(self, name) for name in type(self).model_fields if name != "reason"}

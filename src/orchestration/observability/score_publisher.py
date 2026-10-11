@@ -25,11 +25,11 @@ class LangfuseScorePublisher:
         )
 
     def publish_quality_scores(self, trace_id: str, verdict: QualityVerdict) -> None:
-        for name in ("quality", "relevance", "completeness", "accuracy"):
+        for name, rating in verdict.ratings_by_name().items():
             self._client.create_score(
                 trace_id=trace_id,
                 name=name,
-                value=getattr(verdict, name),
+                value=rating,
                 data_type="NUMERIC",
                 comment=verdict.reason,
             )
