@@ -307,7 +307,7 @@ Cada Section recuperada trae una **Similarity** con la Query (0 a 1). Las Sectio
 
 ## 4. Documentos
 
-Los Documents los escribe el autor del proyecto, no se generan automáticamente.
+Los Documents los generó un LLM a pedido del autor, siguiendo el formato y los límites de esta sección; el autor los revisa antes de usarlos.
 
 ### 4.1 La empresa: Atalaya Data
 

@@ -29,7 +29,7 @@ Multi-agent support routing for Atalaya Data (fictional SaaS for public administ
 
 ## What the author writes
 
-The Documents in `data/` and `test_queries.json` are written by the author. Never generate them.
+The Documents in `data/` were LLM-generated at the author's request and reviewed by the author; do not regenerate or edit them without asking. `test_queries.json` is written by the author; never generate it.
 
 ## Known traps
 

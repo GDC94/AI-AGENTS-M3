@@ -2,7 +2,7 @@
 
 **What to build:** with the author's real Documents and Test Queries in place, the three Knowledge Bases are indexed, the Similarity Threshold is chosen from a sweep over the calibration split, and the validation split is measured once as a Langfuse Experiment, producing the numbers the notebook and the README will report.
 
-**Blocked by:** 07 (Langfuse Experiment). External dependency: the author's Documents for the three Areas and the Test Queries file, written by the author, not generated (PRD "Out of Scope").
+**Blocked by:** 07 (Langfuse Experiment). External dependency: the Documents for the three Areas (LLM-generated at the author's request and reviewed by the author) and the Test Queries file, written by the author, not generated (PRD "Out of Scope").
 
 **Status:** ready-for-agent
 
