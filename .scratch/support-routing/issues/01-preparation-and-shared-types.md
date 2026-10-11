@@ -21,11 +21,20 @@ Open decisions to confirm with the author before closing (do not invent):
 - Mechanism for skipping integration tests: proposed `skipif` on the key environment variables plus `-m "not integration"` in the default pytest options.
 - Whether the sweep output directory is versioned (affects the git ignore list; the directory is used by ticket 08).
 
-- [ ] `uv run pytest` passes with no `.env` and no API keys.
-- [ ] Settings tests cover every variable above, its default, and the error on a missing OpenAI key.
-- [ ] The chat-model factory test builds a model for each role name without network access.
-- [ ] `Area` has exactly three values; `AREA_DESCRIPTIONS` has one non-empty English entry per Area.
-- [ ] `RetrievedSection` validates title, text and a Similarity between 0 and 1.
-- [ ] `uv run pytest -m integration` is recognised and reports skipped tests when keys are absent.
-- [ ] The agent guidance file still contains the original "Agent skills" block unchanged, below the new blocks.
-- [ ] Chroma works on the project's Python version, or the version change is recorded in the plan.
+- [x] `uv run pytest` passes with no `.env` and no API keys.
+- [x] Settings tests cover every variable above, its default, and the error on a missing OpenAI key.
+- [x] The chat-model factory test builds a model for each role name without network access.
+- [x] `Area` has exactly three values; `AREA_DESCRIPTIONS` has one non-empty English entry per Area.
+- [x] `RetrievedSection` validates title, text and a Similarity between 0 and 1.
+- [x] `uv run pytest -m integration` is recognised and reports skipped tests when keys are absent.
+- [x] The agent guidance file still contains the original "Agent skills" block unchanged, below the new blocks.
+- [x] Chroma works on the project's Python version, or the version change is recorded in the plan.
+
+## Comments
+
+**2026-10-11, author:** approved. Open decisions confirmed:
+
+- Integration tests are skipped with `skipif` when the required keys are absent from the environment and from `.env` (`tests/keys.py`), and excluded from the default run with `-m 'not integration'` in the pytest options.
+- The sweep output directory (`outputs/`) is versioned, so it is not in `.gitignore`.
+
+Chroma 1.5.9 creates an in-memory collection on Python 3.14.7; no version change.
