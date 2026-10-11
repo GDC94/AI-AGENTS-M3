@@ -80,7 +80,7 @@ def build_answer_query(
         with langfuse.start_as_current_observation(name="answer_query", as_type="span") as span:
             state = graph.invoke({"query": query}, config={"callbacks": [CallbackHandler()]})
             trace_id = span.trace_id
-        publisher.publish_abstention(trace_id, state["abstained"])
+            publisher.publish_abstention(trace_id, state["abstained"])
         return SupportAnswer(
             query=query,
             route=state["route"],

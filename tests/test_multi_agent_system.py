@@ -94,6 +94,7 @@ def test_off_topic_query_produces_a_langfuse_trace_with_abstained_score():
     abstained = [score for score in trace.scores if score.name == "abstained"]
     assert len(abstained) == 1
     assert abstained[0].value == 0
+    assert result.route.reasoning in str(trace.observations)
 
 
 def fetch_trace_with_scores(langfuse, trace_id, attempts=15, delay_seconds=2.0):
