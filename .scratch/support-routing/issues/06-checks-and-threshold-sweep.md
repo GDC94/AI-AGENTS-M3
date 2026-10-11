@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Out of Scope end to end), for the `SupportAnswer` shape. Can run in parallel with 03, 04 and 05.
 
-**Status:** ready-for-agent
+**Status:** done
 
 Scope (PRD "Checks and calibration"; CONTEXT.md "Check", "Test Query"):
 
@@ -37,3 +37,7 @@ Scope (PRD "Checks and calibration"; CONTEXT.md "Check", "Test Query"):
 - `TestQuery.is_answerable` and `is_unanswerable` replace the raw type strings in the sweep.
 - Single-letter names in the sweep renamed; new tests for `routing_correct` on out_of_scope Queries, and for the sweep with out_of_scope Queries (retrieval never called), only a frontier Query, and no thresholds.
 - Tickets 07 and 08 checked: no statement contradicted.
+
+**Test runs after the fixes:** 118 unit tests passed. Integration: 8 passed, 1 failed once (`test_off_topic_query_produces_a_langfuse_trace_with_abstained_score`, unrelated to this ticket) and passed when re-run alone; cause unconfirmed, suspected Langfuse read-back latency.
+
+**Approval (2026-10-11):** the author approved ticket 06 with reading A for the `abstained` Check and the remaining implementer choices (2-6 above) as they stand. Deferred, not part of this ticket: a shared helper for the Similarity Threshold rule (`>=` is repeated in the sweep and the Specialist), and the predicate names of the Checks, which follow PLAN 5.1.
