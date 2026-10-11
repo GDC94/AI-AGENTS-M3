@@ -1,5 +1,7 @@
 """Test doubles shared by the unit tests."""
 
+from types import SimpleNamespace
+
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_core.messages import BaseMessage
 from pydantic import Field
@@ -29,3 +31,44 @@ class RecordingFakeChatModel(FakeListChatModel):
     def _call(self, messages: list[BaseMessage], *args, **kwargs) -> str:
         self.received.append(messages)
         return super()._call(messages, *args, **kwargs)
+
+
+class RecordingDataset:
+    """Dataset double whose run_experiment records its keyword arguments and returns a fixed result."""
+
+    def __init__(self, items: list[SimpleNamespace], result: object) -> None:
+        self.items = items
+        self.result = result
+        self.experiments: list[dict] = []
+
+    def run_experiment(self, **kwargs):
+        self.experiments.append(kwargs)
+        return self.result
+
+
+class RecordingLangfuse:
+    """Langfuse double: datasets and items are upserted in memory, every call is logged in `calls`."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+        self.datasets: set[str] = set()
+        self.items: dict[str, dict] = {}
+        self.experiment_result = object()
+        self.last_dataset: RecordingDataset | None = None
+
+    def create_dataset(self, *, name: str, **kwargs) -> None:
+        self.calls.append("create_dataset")
+        self.datasets.add(name)
+
+    def create_dataset_item(self, *, dataset_name: str, id: str, **kwargs) -> None:
+        self.calls.append("create_dataset_item")
+        self.items[id] = {"dataset_name": dataset_name, **kwargs}
+
+    def get_dataset(self, name: str) -> RecordingDataset:
+        self.calls.append("get_dataset")
+        items = [SimpleNamespace(id=item_id, **item) for item_id, item in self.items.items()]
+        self.last_dataset = RecordingDataset(items, self.experiment_result)
+        return self.last_dataset
+
+    def flush(self) -> None:
+        self.calls.append("flush")

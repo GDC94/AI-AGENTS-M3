@@ -12,6 +12,21 @@ Scope (PRD "Checks and calibration", "Observability"):
 - `run_validation_experiment` runs the Experiment with the answering function as task and the three Checks adapted to the Langfuse evaluator signature. The observability package only adapts; Check logic stays in the checks package.
 - `flush` is called at the end of the run.
 
-- [ ] Unit test: the adapters map a `TestQuery` to a Dataset item and back without loss, and wrap each Check so that the Check's boolean becomes a named Langfuse evaluation; the Checks themselves are called, not reimplemented.
-- [ ] Integration test: three sample Test Queries are uploaded and one Experiment run completes, visible in Langfuse with the three evaluations per item and each item linked to its trace.
-- [ ] Running the Experiment twice does not duplicate Dataset items.
+- [x] Unit test: the adapters map a `TestQuery` to a Dataset item and back without loss, and wrap each Check so that the Check's boolean becomes a named Langfuse evaluation; the Checks themselves are called, not reimplemented.
+- [x] Integration test: three sample Test Queries are uploaded and one Experiment run completes, visible in Langfuse with the three evaluations per item and each item linked to its trace.
+- [x] Running the Experiment twice does not duplicate Dataset items.
+
+## Comments
+
+**Implementer choices for the author to confirm:**
+
+- Signatures: `upload_test_queries(langfuse, dataset_name, test_queries)` and `run_validation_experiment(langfuse, dataset_name, experiment_name, answer_query)`; both live in `observability/experiments.py` with the adapters `build_dataset_item`, `rebuild_test_query`, `adapt_check`, `build_check_evaluators`, `build_experiment_task`.
+- Dataset item: `input` is the Query text, `expected_output` is `{area, section, type}`, and `metadata` is `{id, asker, split}` so the Test Query rebuilds without loss. Item id is `"<dataset_name>:<test_query.id>"`: deterministic, so `create_dataset_item` upserts (documented SDK behaviour) and ids stay unique across Datasets, as Langfuse requires.
+- Applicability (ticket 06): `routing_correct` for all Test Queries; `retrieval_hit` only for direct and frontier; `abstained` only for Test Queries with an Area. Where a Check does not apply, the evaluator returns no Evaluation (an empty list).
+- Evaluations are BOOLEAN and named after the Check (`routing_correct`, `retrieval_hit`, `abstained`).
+- `flush` runs in a `finally`, so traces are flushed even if the Experiment fails. The Experiment name is a parameter; the Langfuse run name is the name plus a timestamp, so repeated runs are separate runs over the same items.
+- Finding: for Test Queries with an Area, the trace now holds two scores named `abstained`: the one `answer_query` publishes (ticket 04) and the Experiment evaluation. Both have the same value. I kept the Check name as the ticket says; renaming the evaluation (for example `abstained_check`) is a one-line change if you prefer.
+- Legacy read endpoints return 410 for this organisation: the integration test reads results with `api.experiments.list_items(...)` (v4) instead of `datasets.get_run`.
+- The integration test uses the dataset `support-routing-validation-test`, three sample Test Queries built in code against the sample HR Document, and a fixed-verdict Judge. Re-running it reuses the same items (never duplicates).
+
+**Test runs:** 131 unit tests passed; 10 integration tests passed.
