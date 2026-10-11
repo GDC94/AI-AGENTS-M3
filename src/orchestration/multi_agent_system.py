@@ -4,18 +4,25 @@ This module holds wiring only; every prompt lives in its own package (ADR 0003).
 """
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from pathlib import Path
 from typing import TypedDict, get_args
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable
-from langfuse import get_client
+from langchain_openai import OpenAIEmbeddings
+from langfuse import Langfuse, get_client
 from langfuse.langchain import CallbackHandler
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from orchestration.area import Area
-from orchestration.observability import ScorePublisher
-from orchestration.routing import Route, RouteTarget
+from orchestration.config import load_settings
+from orchestration.judging import build_judge
+from orchestration.knowledge_base import build_retrieve, index_all_areas
+from orchestration.llm import build_chat_model
+from orchestration.observability import LangfuseScorePublisher, ScorePublisher, init_langfuse
+from orchestration.routing import Route, RouteTarget, build_router
 from orchestration.section import RetrievedSection
 from orchestration.specialists import OUT_OF_SCOPE_MESSAGE, Retrieve, Specialist, build_specialist
 from orchestration.support_answer import SupportAnswer
@@ -113,3 +120,49 @@ def build_answer_query(
 def _is_grounded(state: SupportState) -> bool:
     """Only a Specialist's grounded reply is judged: it has Sections and is not an Abstention."""
     return not state["abstained"] and bool(state["sections"])
+
+
+@dataclass(frozen=True)
+class SupportSystem:
+    answer_query: Callable[[str], SupportAnswer]
+    retrieve_by_area: dict[Area, Retrieve]
+    langfuse: Langfuse
+
+
+def build_support_system(
+    data_dir: Path = Path("data"),
+    persist_directory: Path = Path(".chroma"),
+) -> SupportSystem:
+    """Read Settings once, index the Documents (idempotent) and wire the whole system."""
+    settings = load_settings()
+    if settings.langfuse_public_key is None or settings.langfuse_secret_key is None:
+        raise ValueError("LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are required to trace the system")
+    api_key = settings.openai_api_key.get_secret_value()
+    embeddings = OpenAIEmbeddings(model=settings.embedding_model, api_key=api_key)
+    index_all_areas(
+        data_dir,
+        embeddings,
+        settings.embedding_model,
+        settings.chunk_max_tokens,
+        settings.chunk_overlap_tokens,
+        persist_directory=persist_directory,
+    )
+    retrieve_by_area = {
+        area: build_retrieve(area, settings.retrieval_top_k, embeddings, persist_directory) for area in Area
+    }
+
+    def chat_model(model_name: str) -> BaseChatModel:
+        return build_chat_model(model_name, api_key=api_key, temperature=settings.llm_temperature)
+
+    langfuse = init_langfuse(
+        settings.langfuse_public_key.get_secret_value(),
+        settings.langfuse_secret_key.get_secret_value(),
+        settings.langfuse_host,
+    )
+    graph = build_graph(
+        build_router(chat_model(settings.router_model)),
+        build_specialists(retrieve_by_area, chat_model(settings.specialist_model), settings.similarity_threshold),
+    )
+    judge = build_judge(chat_model(settings.judge_model))
+    answer_query = build_answer_query(graph, judge, LangfuseScorePublisher(langfuse))
+    return SupportSystem(answer_query=answer_query, retrieve_by_area=retrieve_by_area, langfuse=langfuse)

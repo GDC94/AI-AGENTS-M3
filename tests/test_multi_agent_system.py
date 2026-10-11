@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -8,7 +9,12 @@ from orchestration.area import AREA_DESCRIPTIONS, Area
 from orchestration.config import load_settings
 from orchestration.judging import QualityVerdict, build_judge
 from orchestration.llm import build_chat_model
-from orchestration.multi_agent_system import build_answer_query, build_graph, build_specialists
+from orchestration.multi_agent_system import (
+    build_answer_query,
+    build_graph,
+    build_specialists,
+    build_support_system,
+)
 from orchestration.observability import LangfuseScorePublisher, init_langfuse
 from orchestration.routing import Route, build_router
 from orchestration.section import RetrievedSection
@@ -312,3 +318,16 @@ def test_real_judge_rates_a_grounded_answer_and_its_four_scores_reach_the_trace(
     comments = {score.name: score.comment for score in scores}
     assert comments["quality"] == result.verdict.reason
     assert all(comments[name] is None for name in ("relevance", "completeness", "accuracy"))
+
+
+@pytest.mark.integration
+@requires_keys("OPENAI_API_KEY", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY")
+def test_support_system_built_from_the_real_documents_answers_an_hr_query(tmp_path):
+    system = build_support_system(data_dir=Path("data"), persist_directory=tmp_path / ".chroma")
+
+    result = system.answer_query("¿Cuántos días de vacaciones me corresponden al año y cómo los solicito?")
+    system.langfuse.flush()
+
+    assert result.route.target == Area.HR
+    assert result.abstained is False
+    assert result.sections
