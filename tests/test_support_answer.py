@@ -26,7 +26,7 @@ def test_text_shows_the_query_the_route_target_and_its_reasoning():
     text = format_support_answer(make_answer(), TRACE_URL)
 
     assert "¿Cuántos días de vacaciones tengo?" in text
-    assert "hr" in text
+    assert "Route: hr" in text
     assert "Es una cuestión de permisos." in text
 
 

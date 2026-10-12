@@ -16,6 +16,7 @@ from orchestration.observability.experiments import (
     build_check_evaluators,
     build_dataset_item,
     build_experiment_task,
+    format_experiment_summary,
     rebuild_test_query,
     run_validation_experiment,
     upload_test_queries,
@@ -278,3 +279,78 @@ def test_an_experiment_over_three_test_queries_is_linked_to_traces_and_never_dup
     assert "check_abstained" in stored_names[f"{TEST_DATASET_NAME}:{UNANSWERABLE_SAMPLE.id}"]
     assert "check_abstained" not in stored_names[f"{TEST_DATASET_NAME}:{OUT_OF_SCOPE_SAMPLE.id}"]
     assert "check_retrieval_hit" not in stored_names[f"{TEST_DATASET_NAME}:{UNANSWERABLE_SAMPLE.id}"]
+
+
+def make_item_result(test_query: TestQuery, **checks: bool) -> SimpleNamespace:
+    """A stand-in for one Experiment item result: only the Checks that apply carry an evaluation."""
+    item = build_dataset_item(test_query)
+    return SimpleNamespace(
+        item=SimpleNamespace(
+            input=item["input"], expected_output=item["expected_output"], metadata=item["metadata"]
+        ),
+        evaluations=[SimpleNamespace(name=f"check_{name}", value=value) for name, value in checks.items()],
+    )
+
+
+def summary_line_for(summary: str, label: str) -> str:
+    return next(line for line in summary.splitlines() if line.startswith(label))
+
+
+def test_summary_counts_routing_correct_per_area():
+    result = SimpleNamespace(
+        item_results=[
+            make_item_result(DIRECT, routing_correct=True),
+            make_item_result(make_test_query(id="q05"), routing_correct=False),
+            make_item_result(FRONTIER, routing_correct=True),
+        ]
+    )
+
+    summary = format_experiment_summary(result)
+
+    assert "routing 1/2" in summary_line_for(summary, "hr")
+    assert "routing 1/1" in summary_line_for(summary, "finance")
+
+
+def test_summary_counts_retrieval_hits_only_where_the_check_applies_and_a_dash_otherwise():
+    result = SimpleNamespace(
+        item_results=[
+            make_item_result(DIRECT, routing_correct=True, retrieval_hit=True),
+            make_item_result(make_test_query(id="q05"), routing_correct=True, retrieval_hit=False),
+            make_item_result(make_test_query(id="q06", expected_section=None, type="unanswerable"), routing_correct=True),
+        ]
+    )
+
+    summary = format_experiment_summary(result)
+
+    assert "retrieval 1/2" in summary_line_for(summary, "hr")
+    no_hits = format_experiment_summary(SimpleNamespace(item_results=[make_item_result(UNANSWERABLE, routing_correct=True)]))
+    assert "retrieval —" in summary_line_for(no_hits, "hr")
+
+
+def test_summary_counts_abstained_only_where_the_check_applies_and_a_dash_otherwise():
+    result = SimpleNamespace(
+        item_results=[
+            make_item_result(UNANSWERABLE, routing_correct=True, abstained=True),
+            make_item_result(DIRECT, routing_correct=True, abstained=False),
+            make_item_result(OUT_OF_SCOPE, routing_correct=True),
+        ]
+    )
+
+    summary = format_experiment_summary(result)
+
+    assert "abstained 1/2" in summary_line_for(summary, "hr")
+    assert "abstained —" in summary_line_for(summary, "out_of_scope")
+
+
+def test_summary_ends_with_a_total_line_that_sums_every_area():
+    result = SimpleNamespace(
+        item_results=[
+            make_item_result(DIRECT, routing_correct=True, retrieval_hit=True, abstained=False),
+            make_item_result(FRONTIER, routing_correct=False, retrieval_hit=False, abstained=True),
+            make_item_result(OUT_OF_SCOPE, routing_correct=True),
+        ]
+    )
+
+    summary = format_experiment_summary(result)
+
+    assert summary.splitlines()[-1] == "Total: 3 Test Queries, routing 2/3, retrieval 1/2, abstained 1/2"

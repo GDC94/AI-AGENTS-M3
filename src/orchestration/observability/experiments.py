@@ -1,11 +1,12 @@
 """Langfuse Datasets and Experiments: adapt Test Queries and Checks to Langfuse. Holds no Check logic."""
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, get_args
 
 from langfuse import Evaluation, Langfuse
 
 from orchestration.checks import Check, TestQuery, abstained, retrieval_hit, routing_correct
+from orchestration.routing import RouteTarget
 from orchestration.support_answer import SupportAnswer
 
 
@@ -112,3 +113,38 @@ def run_validation_experiment(
         )
     finally:
         langfuse.flush()
+
+
+def format_experiment_summary(result: Any) -> str:
+    """Per-Area Check results of one Experiment run, then a Total line, as plain text."""
+    evaluations_by_area: dict[str, list[Any]] = {}
+    for item_result in result.item_results:
+        area = rebuild_test_query(**_dataset_item_fields(item_result)).expected_area
+        evaluations_by_area.setdefault(area, []).append(item_result.evaluations)
+    lines = [
+        _format_summary_line(area, evaluations_by_area[area])
+        for area in get_args(RouteTarget)
+        if area in evaluations_by_area
+    ]
+    lines.append(_format_summary_line("Total", [e for group in evaluations_by_area.values() for e in group]))
+    return "\n".join(lines)
+
+
+def _format_summary_line(label: str, evaluations_per_item: list[Any]) -> str:
+    return (
+        f"{label}: {len(evaluations_per_item)} Test Queries, "
+        f"routing {_count_passed(evaluations_per_item, 'check_routing_correct')}, "
+        f"retrieval {_count_passed(evaluations_per_item, 'check_retrieval_hit')}, "
+        f"abstained {_count_passed(evaluations_per_item, 'check_abstained')}"
+    )
+
+
+def _dataset_item_fields(item_result: Any) -> dict[str, Any]:
+    item = item_result.item
+    return {"input": item.input, "expected_output": item.expected_output, "metadata": item.metadata}
+
+
+def _count_passed(evaluations_per_item: list[Any], check_name: str) -> str:
+    """`passed/applicable` for one Check, or `—` when it applied to no item."""
+    values = [e.value for group in evaluations_per_item for e in group if e.name == check_name]
+    return f"{sum(values)}/{len(values)}" if values else "—"
