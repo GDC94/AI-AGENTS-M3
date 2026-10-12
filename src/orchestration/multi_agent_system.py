@@ -90,20 +90,26 @@ def build_answer_query(
     judge: Runnable,
     publisher: ScorePublisher,
 ) -> Callable[[str], SupportAnswer]:
-    """Return answer_query: run the graph inside one Langfuse trace, publish `abstained`, judge grounded Answers."""
+    """Return answer_query: run the graph inside one Langfuse trace, publish `abstained`, judge grounded Answers.
+
+    The graph and the Judge share one callback handler, so the Judge's generation joins the same trace.
+    """
 
     def answer_query(query: str) -> SupportAnswer:
         langfuse = get_client()
         with langfuse.start_as_current_observation(name="answer_query", as_type="span") as span:
-            state = graph.invoke({"query": query}, config={"callbacks": [CallbackHandler()]})
+            span.update(input=query)
+            tracing = {"callbacks": [CallbackHandler()]}
+            state = graph.invoke({"query": query}, config=tracing)
             trace_id = span.trace_id
             publisher.publish_abstention(trace_id, state["abstained"])
             verdict = None
             if _is_grounded(state):
                 verdict = judge.invoke(
-                    {"query": query, "answer": state["answer"], "sections": state["sections"]}
+                    {"query": query, "answer": state["answer"], "sections": state["sections"]}, config=tracing
                 )
                 publisher.publish_quality_scores(trace_id, verdict)
+            span.update(output={"route": state["route"].target, "answer": state["answer"], "abstained": state["abstained"]})
         return SupportAnswer(
             query=query,
             route=state["route"],

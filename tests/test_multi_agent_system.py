@@ -1,9 +1,11 @@
+import json
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from langchain_core.runnables import RunnableLambda
+from langfuse.langchain import CallbackHandler
 
 from orchestration.area import AREA_DESCRIPTIONS, Area
 from orchestration.config import load_settings
@@ -120,6 +122,28 @@ def test_a_grounded_answer_is_judged_once_and_its_quality_scores_follow_the_abst
     ]
 
 
+def test_the_judge_runs_with_the_langfuse_callback_so_its_generation_joins_the_trace():
+    judge_configs = []
+
+    def judge_recording_config(judge_input, config):
+        judge_configs.append(config)
+        return VERDICT
+
+    answer_query = answer_query_for_area(
+        Area.HR,
+        retrieve_returning(section("Holiday entitlement", 0.80)),
+        RecordingFakeChatModel(responses=["You get 22 days [Holiday entitlement]."]),
+        RecordingScorePublisher(),
+        judge=RunnableLambda(judge_recording_config),
+    )
+
+    answer_query("How many days of annual leave do I get?")
+
+    (config,) = judge_configs
+    handlers = getattr(config["callbacks"], "inheritable_handlers", config["callbacks"])
+    assert any(isinstance(handler, CallbackHandler) for handler in handlers)
+
+
 @pytest.mark.parametrize("area", list(Area))
 def test_no_section_above_the_threshold_gives_an_abstention_without_calling_the_model(area):
     chat_model = RecordingFakeChatModel(responses=["must not be used"])
@@ -220,6 +244,14 @@ def join_observation_outputs(observations) -> str:
     return " ".join(str(observation.output) for observation in observations)
 
 
+def generations(observations) -> list:
+    return [observation for observation in observations if observation.type == "GENERATION"]
+
+
+def root_observation(observations):
+    return next(observation for observation in observations if observation.name == "answer_query")
+
+
 def fetch_observations_and_scores(langfuse, trace_id, ready, attempts=15, delay_seconds=2.0):
     """Poll Langfuse until `ready(observations, scores)` is True, then return both lists.
 
@@ -304,14 +336,22 @@ def test_real_judge_rates_a_grounded_answer_and_its_four_scores_reach_the_trace(
     assert all(1 <= rating <= 10 for rating in result.verdict.ratings_by_name().values())
     assert looks_spanish(result.verdict.reason), result.verdict.reason
     expected_names = {*result.verdict.ratings_by_name(), "abstained"}
-    _, scores = fetch_observations_and_scores(
+    observations, scores = fetch_observations_and_scores(
         langfuse,
         result.trace_id,
         ready=lambda observations, scores: (
             expected_names <= {score.name for score in scores}
             and any(score.name == "quality" and score.comment == result.verdict.reason for score in scores)
+            and len(generations(observations)) == 2
+            and root_observation(observations).output is not None
         ),
     )
+    # One generation for the Specialist and one for the Judge: the Judge's call joins the same trace.
+    assert len(generations(observations)) == 2
+    root = root_observation(observations)
+    assert root.input == "How many days of annual leave do I get per year?"
+    # The observations API returns the span output serialised as a JSON string.
+    assert json.loads(root.output) == {"route": "hr", "answer": result.answer, "abstained": False}
     published = {score.name: score.value for score in scores}
     assert {name: published[name] for name in result.verdict.ratings_by_name()} == result.verdict.ratings_by_name()
     assert published["abstained"] is False
