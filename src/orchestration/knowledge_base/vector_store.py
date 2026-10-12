@@ -1,6 +1,6 @@
-"""Chroma collections: one per Area, cosine distance, embedding model in the metadata."""
+"""Chroma collections: one per Area, cosine distance, build settings in the metadata."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 import chromadb
@@ -14,6 +14,19 @@ from orchestration.knowledge_base.chunker import TITLE_KEY
 from orchestration.section import RetrievedSection
 
 EMBEDDING_MODEL_KEY = "embedding_model"
+CHUNK_MAX_TOKENS_KEY = "chunk_max_tokens"
+CHUNK_OVERLAP_TOKENS_KEY = "chunk_overlap_tokens"
+
+BuildSettings = Mapping[str, str | int]
+
+
+def describe_build(embedding_model: str, chunk_max_tokens: int, chunk_overlap_tokens: int) -> BuildSettings:
+    """The settings a collection was built with, stored in its metadata so a later run can compare them."""
+    return {
+        EMBEDDING_MODEL_KEY: embedding_model,
+        CHUNK_MAX_TOKENS_KEY: chunk_max_tokens,
+        CHUNK_OVERLAP_TOKENS_KEY: chunk_overlap_tokens,
+    }
 
 
 def name_collection(area: Area) -> str:
@@ -32,13 +45,13 @@ def collection_exists(client: ClientAPI, area: Area) -> bool:
     return name_collection(area) in {collection.name for collection in client.list_collections()}
 
 
-def open_vector_store(client: ClientAPI, area: Area, embeddings: Embeddings, embedding_model: str) -> Chroma:
-    """Open the Area's collection, creating it with cosine distance and the model name if missing."""
+def open_vector_store(client: ClientAPI, area: Area, embeddings: Embeddings, build_settings: BuildSettings) -> Chroma:
+    """Open the Area's collection, creating it with cosine distance and the build settings if missing."""
     return Chroma(
         client=client,
         collection_name=name_collection(area),
         embedding_function=embeddings,
-        collection_metadata={"hnsw:space": "cosine", EMBEDDING_MODEL_KEY: embedding_model},
+        collection_metadata={"hnsw:space": "cosine", **build_settings},
     )
 
 

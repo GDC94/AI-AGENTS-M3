@@ -54,13 +54,13 @@ def data_dir(tmp_path):
     return tmp_path
 
 
-def index(data_dir, embedding_model="fake-model", force=False):
+def index(data_dir, embedding_model="fake-model", force=False, chunk_max_tokens=800, chunk_overlap_tokens=120):
     return index_all_areas(
         data_dir,
         embeddings=DeterministicFakeEmbedding(size=32),
         embedding_model=embedding_model,
-        chunk_max_tokens=800,
-        chunk_overlap_tokens=120,
+        chunk_max_tokens=chunk_max_tokens,
+        chunk_overlap_tokens=chunk_overlap_tokens,
         persist_directory=None,
         force=force,
     )
@@ -112,6 +112,23 @@ def test_force_rebuilds_without_duplicates(data_dir):
 
     assert index(data_dir, force=True) == {area: "indexed" for area in Area}
     assert len(stored_ids(Area.HR)) == 3
+
+
+def test_indexing_with_different_chunk_settings_is_refused_instead_of_skipped(data_dir):
+    index(data_dir, chunk_max_tokens=800, chunk_overlap_tokens=120)
+
+    with pytest.raises(ValueError, match="chunk_max_tokens=800, not 400"):
+        index(data_dir, chunk_max_tokens=400, chunk_overlap_tokens=120)
+    with pytest.raises(ValueError, match="chunk_overlap_tokens=120, not 60"):
+        index(data_dir, chunk_max_tokens=800, chunk_overlap_tokens=60)
+
+
+def test_force_rebuilds_with_new_chunk_settings(data_dir):
+    index(data_dir, chunk_max_tokens=800)
+
+    index(data_dir, chunk_max_tokens=400, force=True)
+
+    assert index(data_dir, chunk_max_tokens=400) == {area: "skipped" for area in Area}
 
 
 def test_force_rebuilds_with_a_new_embedding_model(data_dir):

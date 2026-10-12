@@ -95,7 +95,7 @@ uv run jupyter notebook multi_agent_system.ipynb
 Run the cells **top to bottom** (Run All works). The first code cell of section 2 must run before anything else, because it builds the whole system:
 
 1. **Setup and imports.** Imports only; the notebook never reads keys itself.
-2. **Document loading and vector stores.** `build_support_system()` reads the settings, indexes the three Knowledge Bases into `.chroma/` and connects to Langfuse. The first run embeds all Documents once; later runs reuse the index. The next cell retrieves Sections for a sample Query.
+2. **Document loading and vector stores.** `build_support_system()` reads the settings, indexes the three Knowledge Bases into `.chroma/` and connects to Langfuse. The first run embeds all Documents once; later runs reuse the index. Each Knowledge Base records the embedding model and chunk settings it was built with: if `EMBEDDING_MODEL`, `CHUNK_MAX_TOKENS` or `CHUNK_OVERLAP_TOKENS` change, the run refuses to reuse it and asks you to delete `.chroma/` (or rebuild with `index_all_areas(..., force=True)`). The next cell retrieves Sections for a sample Query.
 3. **Agent definition (Specialists).** Shows the Area descriptions and the two fixed messages.
 4. **Orchestrator and routing.** Answers one Query end to end and prints its Langfuse trace link.
 5. **Tests and examples.** One grounded Answer per Area, a Frontier Query, an Out of Scope Query and an Abstention.
