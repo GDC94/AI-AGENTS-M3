@@ -31,3 +31,20 @@ Scope (PRD "Knowledge Bases", "Checks and calibration", "Further Notes"; ADR 000
 - Chosen: Similarity Threshold **0.325** (middle of 0.25 to 0.40) and top-k **4**, in the `Settings` defaults, `PLAN.md` §3.5/§3.6 and the PRD. The environment template still needs the same two values.
 - Verified read-only: Similarity = 1 − cosine distance (matches a manual cosine within 1.3e-6); the HNSW top 3 equals the exact ranking for all 29 Queries; the sweep uses `>=` like the Specialist; a re-run reproduces the saved file. OpenAI embeddings vary slightly between calls (up to about 2.5e-3 in Similarity), with no ranking change seen.
 - Thin margins to watch in validation: finance-09's expected Section is 0.0002 below rank 1; tech-03 and hr-10 rank 3.
+
+**Validation Experiment (ran once, 2026-10-12, threshold 0.325, top-k 4, Router/Specialist gpt-4o-mini, Judge gpt-4.1):**
+
+- Run: `first-real-run - 2026-10-12T00:15:41.402148Z` on Dataset `support-routing-validation` (16 Test Queries): https://us.cloud.langfuse.com/project/cmv48hrxk012mad0iu5ad20ir/datasets/cmv4i3rx1007jad0jplfx4dyb/runs/5f3204c8-6778-44ae-afe2-196774aef162
+
+| Area | Test Queries | Routing correct | Retrieval hits | Abstentions (unanswerable) | Abstentions (answerable) | Judged | Mean quality |
+|---|---|---|---|---|---|---|---|
+| hr | 5 | 5/5 | 4/4 | 0/1 | 0/4 | 5 | 9.6 |
+| tech | 6 | 6/6 | 5/5 | 0/1 | 0/5 | 6 | 9.0 |
+| finance | 3 | 2/3 | 2/3 | — | 0/3 | 3 | 10.0 |
+| out_of_scope | 2 | 2/2 | — | — | — | — | — |
+| **Total** | **16** | **15/16 (93.8%)** | **11/12 (91.7%)** | **0/2** | **0/12** | 14 | 9.4 |
+
+- No Frontier Query was misrouted (4/4 correct), so the ADR 0001 remedy order was not triggered.
+- finance-07 (direct) was routed to hr: the Router read "plástico de la empresa" (the company card) as equipment and ignored "Tesorería". The hr Specialist answered about the lost credential, and the Judge rated it 10/10 because the Judge checks the Answer only against the Sections it received, so it cannot see a wrong Route. Not tuned after validation, to keep the validation split clean.
+- Both unanswerable Test Queries (hr-15, tech-15) got no Abstention (`check_abstained` false), as ADR 0004 predicts. The Specialist's text still declined correctly ("No se menciona en las secciones..."), and the Judge rated them 9 and 6.
+- Findings for tickets 09 and 10: (1) the `abstained` flag undercounts declines, because the Specialist's prompt makes it decline in text; (2) a high Judge rating does not mean the Route was right.
