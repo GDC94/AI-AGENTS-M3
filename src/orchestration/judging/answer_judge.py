@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from orchestration.judging.quality_verdict import QualityVerdict
-from orchestration.section import RetrievedSection
+from orchestration.section import format_sections_for_prompt
 
 JUDGE_SYSTEM_PROMPT = """You are the Judge of a support system for Atalaya Data, a SaaS company whose \
 platform serves public administrations. A Specialist answered a Query using only the Sections below, \
@@ -38,8 +38,4 @@ def build_judge(chat_model: BaseChatModel) -> Runnable[dict, QualityVerdict]:
 
 
 def _format_judge_input(judge_input: dict) -> dict:
-    return judge_input | {"sections": _format_sections(judge_input["sections"])}
-
-
-def _format_sections(sections: list[RetrievedSection]) -> str:
-    return "\n\n---\n\n".join(f"Section title: {section.title}\n{section.text}" for section in sections)
+    return judge_input | {"sections": format_sections_for_prompt(judge_input["sections"])}

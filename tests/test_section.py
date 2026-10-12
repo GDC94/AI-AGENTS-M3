@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from orchestration.section import RetrievedSection
+from orchestration.section import RetrievedSection, format_sections_for_prompt
 
 
 def test_holds_title_text_and_similarity():
@@ -29,3 +29,18 @@ def test_rejects_empty_title_or_text(field):
 
     with pytest.raises(ValidationError):
         RetrievedSection(**values)
+
+
+def test_formats_each_section_with_its_title_stated_and_a_separator_between_them():
+    sections = [
+        RetrievedSection(title="Payslips", text="Published monthly.", similarity=0.8),
+        RetrievedSection(title="Vacations", text="Twenty days a year.", similarity=0.6),
+    ]
+
+    assert format_sections_for_prompt(sections) == (
+        "Section title: Payslips\nPublished monthly.\n\n---\n\nSection title: Vacations\nTwenty days a year."
+    )
+
+
+def test_formats_no_sections_as_an_empty_string():
+    assert format_sections_for_prompt([]) == ""

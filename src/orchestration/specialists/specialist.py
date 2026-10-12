@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
 
 from orchestration.area import AREA_DESCRIPTIONS, Area
-from orchestration.section import RetrievedSection
+from orchestration.section import RetrievedSection, format_sections_for_prompt
 
 Retrieve = Callable[[str], list[RetrievedSection]]
 Specialist = Callable[[str], "SpecialistReply"]
@@ -62,12 +62,7 @@ def build_specialist(
         surviving = [section for section in retrieve(query) if section.similarity >= threshold]
         if not surviving:
             return SpecialistReply(answer=NO_INFORMATION_MESSAGE, sections=[], abstained=True)
-        text = draft.invoke({"query": query, "sections": _format_sections(surviving)})
+        text = draft.invoke({"query": query, "sections": format_sections_for_prompt(surviving)})
         return SpecialistReply(answer=text, sections=surviving, abstained=False)
 
     return reply_to_query
-
-
-def _format_sections(sections: list[RetrievedSection]) -> str:
-    """Each Section with its title stated explicitly, so citations never depend on the text format."""
-    return "\n\n---\n\n".join(f"Section title: {section.title}\n{section.text}" for section in sections)
