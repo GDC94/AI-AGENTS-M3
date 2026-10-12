@@ -42,7 +42,7 @@ The Documents in `data/` were LLM-generated at the author's request and reviewed
 
 ## Language
 
-- English: code, identifiers, comments, tests, system prompts, `CONTEXT.md` and ADRs. Prompts tell the model to answer in the Query's language.
+- English: code, identifiers, comments, tests, system prompts, `CONTEXT.md`, ADRs and `README.md`. Prompts tell the model to answer in the Query's language.
 - Spanish: the Documents in `data/`, `PLAN.md`, fixed Asker-facing messages (`OUT_OF_SCOPE_MESSAGE`, `NO_INFORMATION_MESSAGE`), the Judge's `reason`, and explanations to the author.
 
 ## Agent skills
