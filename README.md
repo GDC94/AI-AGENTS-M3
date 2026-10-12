@@ -70,7 +70,7 @@ cp .env.example .env
 | `OPENAI_API_KEY` | yes | — | Chat models and embeddings |
 | `LANGFUSE_PUBLIC_KEY` | yes | — | `build_support_system` raises `ValueError` without it |
 | `LANGFUSE_SECRET_KEY` | yes | — | Same as above |
-| `LANGFUSE_HOST` | yes | — | Must match your project's region, e.g. `https://cloud.langfuse.com` (EU) or `https://us.cloud.langfuse.com` (US) |
+| `LANGFUSE_HOST` | no | Langfuse SDK default (`https://cloud.langfuse.com`, EU) | Set it to your project's region, e.g. `https://us.cloud.langfuse.com` (US) |
 | `SIMILARITY_THRESHOLD` | no | `0.325` | Calibrated in the first real run ([ADR 0004](docs/adr/0004-threshold-cannot-catch-unanswerable-queries.md)) |
 | `RETRIEVAL_TOP_K` | no | `4` | Sections retrieved per Query |
 | `ROUTER_MODEL` | no | `gpt-4o-mini` | |
@@ -101,7 +101,7 @@ Run the cells **top to bottom** (Run All works). The first code cell of section 
 5. **Tests and examples.** One grounded Answer per Area, a Frontier Query, an Out of Scope Query and an Abstention.
 6. **Langfuse integration.** The calibration sweep (writes `outputs/threshold_sweep.json`), the validation Experiment over the `validation` split (uploads the Dataset and prints the run link), and a final `langfuse.flush()`.
 
-Every cell from section 2 on calls OpenAI. The validation Experiment cell runs the full pipeline, Judge included, over 16 Test Queries, so it is the slowest and most expensive cell.
+The code cells of sections 2, 4, 5 and 6 call OpenAI, except the final flush; sections 1 and 3 make no network calls. The validation Experiment cell runs the full pipeline, Judge included, over 16 Test Queries, so it is the slowest and most expensive cell. Each execution creates a new Experiment run in Langfuse; the reference run is the one in [Measured results](#measured-results).
 
 ## Usage examples
 

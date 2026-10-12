@@ -42,7 +42,7 @@ Además, implementa un Agente Evaluador dentro de Langfuse para asignar automát
 
 ### Cómo se mapea la consigna al vocabulario del proyecto
 
-La consigna usa "agente" para tres cosas distintas. Acá cada una tiene su nombre (ver `CONTEXT.md`), y el README lleva esta misma tabla:
+La consigna usa "agente" para tres cosas distintas. Acá cada una tiene su nombre (ver `CONTEXT.md`), y el README lleva esta misma tabla, traducida al inglés:
 
 | Consigna | Este proyecto | Por qué |
 |---|---|---|
