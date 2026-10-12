@@ -135,8 +135,14 @@ def _format_summary_line(label: str, evaluations_per_item: list[Any]) -> str:
         f"{label}: {len(evaluations_per_item)} Test Queries, "
         f"routing {_count_passed(evaluations_per_item, 'check_routing_correct')}, "
         f"retrieval {_count_passed(evaluations_per_item, 'check_retrieval_hit')}, "
-        f"abstained {_count_passed(evaluations_per_item, 'check_abstained')}"
+        f"abstentions {_count_abstentions(evaluations_per_item)}"
     )
+
+
+def _count_abstentions(evaluations_per_item: list[Any]) -> str:
+    """How many Specialists abstained, out of the items with an Area; a raw count, not a pass rate (ticket 06)."""
+    values = _collect_check_values(evaluations_per_item, "check_abstained")
+    return f"{sum(values)} (of {len(values)} with an Area)" if values else "—"
 
 
 def _dataset_item_fields(item_result: Any) -> dict[str, Any]:
@@ -146,5 +152,10 @@ def _dataset_item_fields(item_result: Any) -> dict[str, Any]:
 
 def _count_passed(evaluations_per_item: list[Any], check_name: str) -> str:
     """`passed/applicable` for one Check, or `—` when it applied to no item."""
-    values = [e.value for group in evaluations_per_item for e in group if e.name == check_name]
+    values = _collect_check_values(evaluations_per_item, check_name)
     return f"{sum(values)}/{len(values)}" if values else "—"
+
+
+def _collect_check_values(evaluations_per_item: list[Any], check_name: str) -> list[bool]:
+    """The values of one Check across items; items where it did not apply contribute nothing."""
+    return [e.value for group in evaluations_per_item for e in group if e.name == check_name]

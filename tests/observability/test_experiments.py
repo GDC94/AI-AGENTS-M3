@@ -1,15 +1,19 @@
 import time
-from types import SimpleNamespace
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from langchain_core.runnables import RunnableLambda
 
+from orchestration.checks import TestQuery
 from orchestration.config import load_settings
 from orchestration.judging import QualityVerdict
 from orchestration.llm import build_chat_model
-from orchestration.multi_agent_system import build_answer_query, build_graph, build_specialists
-from orchestration.checks import TestQuery
+from orchestration.multi_agent_system import (
+    build_answer_query,
+    build_graph,
+    build_specialists,
+)
 from orchestration.observability import LangfuseScorePublisher, init_langfuse
 from orchestration.observability.experiments import (
     adapt_check,
@@ -27,6 +31,7 @@ from orchestration.support_answer import SupportAnswer
 from tests.doubles import RecordingLangfuse
 from tests.keys import requires_keys
 from tests.samples import index_sample_document_for_every_area
+
 
 def make_test_query(**overrides) -> TestQuery:
     fields = {
@@ -338,8 +343,8 @@ def test_summary_counts_abstained_only_where_the_check_applies_and_a_dash_otherw
 
     summary = format_experiment_summary(result)
 
-    assert "abstained 1/2" in summary_line_for(summary, "hr")
-    assert "abstained —" in summary_line_for(summary, "out_of_scope")
+    assert "abstentions 1 (of 2 with an Area)" in summary_line_for(summary, "hr")
+    assert "abstentions —" in summary_line_for(summary, "out_of_scope")
 
 
 def test_summary_ends_with_a_total_line_that_sums_every_area():
@@ -353,4 +358,4 @@ def test_summary_ends_with_a_total_line_that_sums_every_area():
 
     summary = format_experiment_summary(result)
 
-    assert summary.splitlines()[-1] == "Total: 3 Test Queries, routing 2/3, retrieval 1/2, abstained 1/2"
+    assert summary.splitlines()[-1] == "Total: 3 Test Queries, routing 2/3, retrieval 1/2, abstentions 1 (of 2 with an Area)"
