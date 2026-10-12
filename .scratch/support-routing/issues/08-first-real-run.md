@@ -22,13 +22,13 @@ Scope (PRD "Knowledge Bases", "Checks and calibration", "Further Notes"; ADR 000
 
 ## Comments
 
-**Wiring (commit 5a8a374):** `build_support_system(data_dir, persist_directory) -> SupportSystem(answer_query, retrieve_by_area, langfuse)` in `multi_agent_system.py` reads `Settings` once, indexes idempotently and wires everything (ADR 0003). It raises `ValueError` when the Langfuse keys are missing. Tests: integration `test_support_system_built_from_the_real_documents_answers_an_hr_query`; unit `test_knowledge_base_has_more_than_fifty_sections` (HR 69, tech 76, finance 62 at 800/120 tokens), `test_only_the_composition_module_reads_settings`, `test_no_test_query_text_appears_in_the_source`. The run scripts live outside the repo (author's decision); ticket 09's notebook is their permanent home.
+**Wiring (commit 5a8a374):** `build_support_system(data_dir, persist_directory) -> SupportSystem(answer_query, retrieve_by_area, langfuse)` in `multi_agent_system.py` reads `Settings` once, indexes idempotently and wires everything (ADR 0003). It raises `ValueError` when the Langfuse keys are missing. Tests: integration `test_support_system_built_from_the_real_documents_answers_an_hr_query`; unit `test_each_real_knowledge_base_holds_more_than_fifty_sections` (HR 69, tech 76, finance 62 at 800/120 tokens; public interface, in-memory Chroma, fake embeddings), `test_only_the_composition_module_reads_settings`, `test_no_test_query_text_appears_in_the_source`. The run scripts live outside the repo (author's decision); ticket 09's notebook is their permanent home.
 
 **Calibration (author-approved):**
 
 - Sweep over the 29 calibration Test Queries with an Area, 20 thresholds from 0.25 to 0.725. With top-k 3, retrieval hits peak at 23/24 (0.25 to 0.40); hr-03's expected Section ("Conflictos de interés") ranks 4th (0.507 vs 0.516). With top-k 4 they peak at 24/24 over the same range. `outputs/threshold_sweep.json` holds the top-k 4 sweep.
 - No good zone exists: no threshold blocks the unanswerable Test Queries without losing answerable ones (lowest expected Section 0.408, hr-05; best unanswerable Section 0.620, hr-13). Correct Abstentions are 0/5 up to 0.475. Recorded in ADR 0004.
-- Chosen: Similarity Threshold **0.325** (middle of 0.25 to 0.40) and top-k **4**, in the `Settings` defaults, `PLAN.md` §3.5/§3.6 and the PRD. The environment template still needs the same two values.
+- Chosen: Similarity Threshold **0.325** (middle of 0.25 to 0.40) and top-k **4**, in the `Settings` defaults, `PLAN.md` §3.5/§3.6 and the PRD. The author set the same two values in the environment template (`.env.example` is permission-blocked for the agent, so the author edits and commits it).
 - Verified read-only: Similarity = 1 − cosine distance (matches a manual cosine within 1.3e-6); the HNSW top 3 equals the exact ranking for all 29 Queries; the sweep uses `>=` like the Specialist; a re-run reproduces the saved file. OpenAI embeddings vary slightly between calls (up to about 2.5e-3 in Similarity), with no ranking change seen.
 - Thin margins to watch in validation: finance-09's expected Section is 0.0002 below rank 1; tech-03 and hr-10 rank 3.
 

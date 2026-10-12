@@ -1,5 +1,7 @@
 """Seam 2: the knowledge base public interface, with in-memory Chroma and fake embeddings."""
 
+from pathlib import Path
+
 import chromadb
 import pytest
 from langchain_core.embeddings import DeterministicFakeEmbedding
@@ -212,3 +214,12 @@ def test_force_keeps_the_old_knowledge_base_when_the_documents_cannot_be_read(da
         index(data_dir, force=True)
 
     assert len(stored_ids(Area.HR)) == 3
+
+
+def test_each_real_knowledge_base_holds_more_than_fifty_sections():
+    # The real Documents in data/, with the default chunk sizes (800/120) that `index` uses.
+    index(Path("data"))
+
+    section_counts = {area: len(stored_ids(area)) for area in Area}
+
+    assert all(count > 50 for count in section_counts.values()), section_counts
