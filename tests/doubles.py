@@ -53,7 +53,7 @@ class RecordingLangfuse:
         self.calls: list[str] = []
         self.datasets: set[str] = set()
         self.items: dict[str, dict] = {}
-        self.experiment_result = object()
+        self.experiment_result: object | None = None
         self.last_dataset: RecordingDataset | None = None
 
     def create_dataset(self, *, name: str, **kwargs) -> None:
@@ -67,6 +67,11 @@ class RecordingLangfuse:
     def get_dataset(self, name: str) -> RecordingDataset:
         self.calls.append("get_dataset")
         items = [SimpleNamespace(id=item_id, **item) for item_id, item in self.items.items()]
+        if self.experiment_result is None:
+            # Unless a test says otherwise, every item succeeds: one item result per item, no evaluations.
+            self.experiment_result = SimpleNamespace(
+                item_results=[SimpleNamespace(item=item, evaluations=[]) for item in items], dataset_run_url=None
+            )
         self.last_dataset = RecordingDataset(items, self.experiment_result)
         return self.last_dataset
 

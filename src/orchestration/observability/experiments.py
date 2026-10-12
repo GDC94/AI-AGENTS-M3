@@ -102,17 +102,30 @@ def run_validation_experiment(
 ):
     """Run one Experiment over the Dataset: `answer_query` is the task, the three Checks are the evaluators.
 
+    Langfuse logs an item whose task or evaluator raised and drops it from the result, which would
+    shrink the denominator of every Check without notice; here that is an error instead.
     Flushes the client at the end, so short scripts do not lose traces or scores.
     """
     dataset = langfuse.get_dataset(dataset_name)
     try:
-        return dataset.run_experiment(
+        result = dataset.run_experiment(
             name=experiment_name,
             task=build_experiment_task(answer_query),
             evaluators=build_check_evaluators(),
         )
     finally:
         langfuse.flush()
+    _raise_on_dropped_items(result, expected=len(dataset.items))
+    return result
+
+
+def _raise_on_dropped_items(result: Any, expected: int) -> None:
+    failed = expected - len(result.item_results)
+    if failed > 0:
+        raise RuntimeError(
+            f"{failed} of {expected} Test Queries failed and Langfuse dropped them from the Experiment; "
+            f"the summary would under-count. Look for 'Item N failed' in the log and at {result.dataset_run_url}"
+        )
 
 
 def format_experiment_summary(result: Any) -> str:

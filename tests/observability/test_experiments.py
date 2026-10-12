@@ -191,6 +191,20 @@ def test_the_experiment_runs_on_the_dataset_with_the_three_checks_and_flushes_at
     assert langfuse.calls == ["get_dataset", "flush"]
 
 
+def test_the_experiment_fails_loudly_when_langfuse_dropped_failed_items_instead_of_under_counting():
+    langfuse = RecordingLangfuse()
+    upload_test_queries(langfuse, "validation-set", [DIRECT, FRONTIER, UNANSWERABLE])
+    langfuse.experiment_result = SimpleNamespace(
+        item_results=[SimpleNamespace(item=SimpleNamespace(id="validation-set:hr-01"), evaluations=[])],
+        dataset_run_url="https://langfuse.example/run/1",
+    )
+
+    with pytest.raises(RuntimeError, match=r"2 of 3 Test Queries failed.*https://langfuse.example/run/1"):
+        run_experiment_with(langfuse, lambda query: make_support_answer())
+
+    assert langfuse.calls[-1] == "flush"
+
+
 def test_the_experiment_task_answers_the_query_of_the_dataset_item():
     langfuse = RecordingLangfuse()
     upload_test_queries(langfuse, "validation-set", [DIRECT])
