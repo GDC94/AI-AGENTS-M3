@@ -151,7 +151,7 @@ def build_support_system(
         area: build_retrieve(area, settings.retrieval_top_k, embeddings, persist_directory) for area in Area
     }
 
-    def chat_model(model_name: str) -> BaseChatModel:
+    def make_chat_model(model_name: str) -> BaseChatModel:
         return build_chat_model(model_name, api_key=api_key, temperature=settings.llm_temperature)
 
     langfuse = init_langfuse(
@@ -160,9 +160,9 @@ def build_support_system(
         settings.langfuse_host,
     )
     graph = build_graph(
-        build_router(chat_model(settings.router_model)),
-        build_specialists(retrieve_by_area, chat_model(settings.specialist_model), settings.similarity_threshold),
+        build_router(make_chat_model(settings.router_model)),
+        build_specialists(retrieve_by_area, make_chat_model(settings.specialist_model), settings.similarity_threshold),
     )
-    judge = build_judge(chat_model(settings.judge_model))
+    judge = build_judge(make_chat_model(settings.judge_model))
     answer_query = build_answer_query(graph, judge, LangfuseScorePublisher(langfuse))
     return SupportSystem(answer_query=answer_query, retrieve_by_area=retrieve_by_area, langfuse=langfuse)

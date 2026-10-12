@@ -13,7 +13,7 @@ from orchestration.knowledge_base.document_loader import load_area_documents
 from orchestration.knowledge_base.vector_store import (
     EMBEDDING_MODEL_KEY,
     collection_exists,
-    collection_name,
+    name_collection,
     open_client,
     open_vector_store,
 )
@@ -46,7 +46,7 @@ def index_all_areas(
         documents = load_area_documents(data_dir / f"{area.value}_docs")
         sections = split_into_sections(documents, chunk_max_tokens, chunk_overlap_tokens)
         if force and collection_exists(client, area):
-            client.delete_collection(collection_name(area))
+            client.delete_collection(name_collection(area))
         ids = [_section_id(area, section) for section in sections]
         open_vector_store(client, area, embeddings, embedding_model).add_documents(sections, ids=ids)
         outcomes[area] = "indexed"
@@ -57,7 +57,7 @@ def _needs_indexing(client: ClientAPI, area: Area, embedding_model: str, force: 
     """False when the collection already holds Sections from the same embedding model."""
     if force or not collection_exists(client, area):
         return True
-    collection = client.get_collection(collection_name(area))
+    collection = client.get_collection(name_collection(area))
     stored_model = (collection.metadata or {}).get(EMBEDDING_MODEL_KEY)
     if stored_model != embedding_model:
         raise ValueError(

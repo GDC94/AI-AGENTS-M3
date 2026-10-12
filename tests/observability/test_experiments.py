@@ -238,14 +238,14 @@ def test_an_experiment_over_three_test_queries_is_linked_to_traces_and_never_dup
         settings.langfuse_secret_key.get_secret_value(),
         settings.langfuse_host,
     )
-    chat_model = lambda model: build_chat_model(model, api_key=api_key, temperature=settings.llm_temperature)
+    make_chat_model = lambda model: build_chat_model(model, api_key=api_key, temperature=settings.llm_temperature)
     specialists = build_specialists(
         index_sample_document_for_every_area(settings, api_key, tmp_path),
-        chat_model(settings.specialist_model),
+        make_chat_model(settings.specialist_model),
         settings.similarity_threshold,
     )
     answer_query = build_answer_query(
-        build_graph(build_router(chat_model(settings.router_model)), specialists),
+        build_graph(build_router(make_chat_model(settings.router_model)), specialists),
         RunnableLambda(lambda judge_input: VERDICT),
         LangfuseScorePublisher(langfuse),
     )

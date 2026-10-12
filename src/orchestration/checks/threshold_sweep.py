@@ -39,15 +39,15 @@ def sweep_threshold(
         for test_query in [*answerable, *unanswerable]
     }
 
-    def survivors(test_query: TestQuery, threshold: float) -> list[str]:
+    def list_surviving_titles(test_query: TestQuery, threshold: float) -> list[str]:
         return [section.title for section in retrieved[test_query.id] if section.similarity >= threshold]
 
     return [
         SweepPoint(
             threshold=threshold,
-            retrieval_hits=sum(test_query.expected_section in survivors(test_query, threshold) for test_query in answerable),
+            retrieval_hits=sum(test_query.expected_section in list_surviving_titles(test_query, threshold) for test_query in answerable),
             answerable=len(answerable),
-            correct_abstentions=sum(not survivors(test_query, threshold) for test_query in unanswerable),
+            correct_abstentions=sum(not list_surviving_titles(test_query, threshold) for test_query in unanswerable),
             unanswerable=len(unanswerable),
         )
         for threshold in thresholds

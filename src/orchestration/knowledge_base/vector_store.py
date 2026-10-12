@@ -16,7 +16,7 @@ from orchestration.section import RetrievedSection
 EMBEDDING_MODEL_KEY = "embedding_model"
 
 
-def collection_name(area: Area) -> str:
+def name_collection(area: Area) -> str:
     # Chroma requires at least three characters, so the bare Area value is not enough.
     return f"knowledge_base_{area.value}"
 
@@ -29,14 +29,14 @@ def open_client(persist_directory: Path | str | None) -> ClientAPI:
 
 
 def collection_exists(client: ClientAPI, area: Area) -> bool:
-    return collection_name(area) in {collection.name for collection in client.list_collections()}
+    return name_collection(area) in {collection.name for collection in client.list_collections()}
 
 
 def open_vector_store(client: ClientAPI, area: Area, embeddings: Embeddings, embedding_model: str) -> Chroma:
     """Open the Area's collection, creating it with cosine distance and the model name if missing."""
     return Chroma(
         client=client,
-        collection_name=collection_name(area),
+        collection_name=name_collection(area),
         embedding_function=embeddings,
         collection_metadata={"hnsw:space": "cosine", EMBEDDING_MODEL_KEY: embedding_model},
     )
@@ -56,7 +56,7 @@ def build_retrieve(
     # Opening a missing collection would silently create an empty one with Chroma's default L2 distance.
     if not collection_exists(client, area):
         raise ValueError(f"The {area.value} Knowledge Base has not been indexed; run index_all_areas first")
-    store = Chroma(client=client, collection_name=collection_name(area), embedding_function=embeddings)
+    store = Chroma(client=client, collection_name=name_collection(area), embedding_function=embeddings)
 
     def retrieve(query: str) -> list[RetrievedSection]:
         results = store.similarity_search_with_score(query, k=top_k)
