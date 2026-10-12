@@ -22,7 +22,8 @@ Single-context repo (this repo):
 ├── docs/adr/
 │   ├── 0001-one-knowledge-base-per-fact.md
 │   ├── 0002-specialists-are-chains-not-agents.md
-│   └── 0003-inject-built-runnables.md
+│   ├── 0003-inject-built-runnables.md
+│   └── 0004-threshold-cannot-catch-unanswerable-queries.md
 └── src/
 ```
 

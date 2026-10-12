@@ -93,7 +93,7 @@ A support routing system built with LangChain and LangGraph, traced in Langfuse:
 - The same embedding model (configurable, default text-embedding-3-small) is used for indexing and for Queries.
 - Documents are Markdown; Sections are produced by splitting on second-level headings, keeping the heading as metadata and inside the text, with a token-based recursive splitter as a safety net above a configurable maximum (default 800 tokens, 120 overlap). By document design one Section is one chunk; the word "chunk" exists only inside the chunker.
 - Indexing is idempotent: an existing non-empty collection with the same embedding model is skipped; a different embedding model is an error; a missing collection is created; a force flag deletes and rebuilds. Each Section is stored under a deterministic id made from the Area and the Section title, so interrupted runs cannot create duplicates.
-- Retrieval uses relevance scores in 0 to 1 and applies the threshold in the Specialist, not inside the vector store, so the calibration sweep can see raw Similarities. Default top-k is 3.
+- Retrieval uses relevance scores in 0 to 1 and applies the threshold in the Specialist, not inside the vector store, so the calibration sweep can see raw Similarities. Default top-k is 4 (calibrated in ticket 08).
 - The knowledge base package has a public interface of exactly two functions: index all Areas, and build the retrieval callable for one Area. Both receive the embeddings and the persistence location as parameters (none means in-memory). Everything else in the package is internal.
 - Each fact lives in exactly one Knowledge Base (ADR 0001). Documents and Test Queries are written by the author, never generated.
 
@@ -114,7 +114,7 @@ A support routing system built with LangChain and LangGraph, traced in Langfuse:
 
 ### Configuration and models
 
-- Settings use pydantic-settings reading a dotenv file: OpenAI key; Router, Specialist and Judge model names (defaults gpt-4o-mini, gpt-4o-mini, gpt-4.1); embedding model; temperature 0.0; Similarity Threshold 0.42; top-k 3; chunk max and overlap tokens; Langfuse keys and host.
+- Settings use pydantic-settings reading a dotenv file: OpenAI key; Router, Specialist and Judge model names (defaults gpt-4o-mini, gpt-4o-mini, gpt-4.1); embedding model; temperature 0.0; Similarity Threshold 0.325; top-k 4; chunk max and overlap tokens; Langfuse keys and host.
 - One chat-model factory takes a model name, an API key and a temperature; the composition layer calls it once per role.
 - Language: code, identifiers, comments, tests, system prompts, the glossary and ADRs in English; prompts instruct the model to answer in the Query's language. The Documents, the fixed Asker-facing messages, the Judge's Reason and the plan are in Spanish.
 
@@ -154,6 +154,6 @@ Verification of the Documents: a test asserts each Knowledge Base yields more th
 
 - Python 3.14 is new; Chroma support is confirmed during preparation. If it fails, the project moves to Python 3.12.
 - Open check during the observability step: what trace id a Langfuse span reports when the client is disabled for lack of keys. It affects only what unit tests accept for the trace id field.
-- The initial Similarity Threshold (0.42) and top-k (3) come from a sibling project's sweep and must be recalibrated on this project's Documents; the sweep runs over the calibration split only, and the validation split is used once, at the end.
+- The initial Similarity Threshold (0.42) and top-k (3) came from a sibling project's sweep and were recalibrated on this project's Documents in ticket 08: Similarity Threshold 0.325 and top-k 4. The sweep runs over the calibration split only, and the validation split is used once, at the end. On these Documents no threshold blocks the unanswerable Test Queries without losing answerable ones (ADR 0004).
 - The Documents are written in parallel with the code: every step up to composition is built against a small sample Document and test doubles.
 - Two animated diagrams (flow and structure) accompany the plan and are current as of 2026-10-11.

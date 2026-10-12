@@ -60,7 +60,7 @@ La consigna usa "agente" para tres cosas distintas. Acá cada una tiene su nombr
 - Existe `src/core/LLM.py`, vacío y fuera del paquete. Se borra en el ticket 01.
 - Existe `CLAUDE.md` con solo el bloque `## Agent skills` (tracker local en `.scratch/`, etiquetas de triage, docs de dominio; ver `docs/agents/`). Los bloques de la sección 7 se agregan arriba en el ticket 01.
 - Hay tests con pytest en `tests/`.
-- `CONTEXT.md` (glosario) y `docs/adr/0001..0003` ya están escritos.
+- `CONTEXT.md` (glosario) y `docs/adr/0001..0003` ya están escritos; `0004` se agregó en el ticket 08, tras la calibración.
 
 ## 2. Herramientas
 
@@ -172,8 +172,8 @@ Si la accuracy del Router sobre los Test Queries da baja, el orden de ajuste es:
 | `ROUTER_MODEL`, `SPECIALIST_MODEL`, `JUDGE_MODEL` | ver tabla | 3.3 |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | 3.2 |
 | `LLM_TEMPERATURE` | `0.0` | — |
-| `SIMILARITY_THRESHOLD` | `0.42` | 3.5 |
-| `RETRIEVAL_TOP_K` | `3` | 3.6 |
+| `SIMILARITY_THRESHOLD` | `0.325` | 3.5 |
+| `RETRIEVAL_TOP_K` | `4` | 3.6 |
 | `CHUNK_MAX_TOKENS`, `CHUNK_OVERLAP_TOKENS` | `800`, `120` | 3.6 |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` | — | 2 |
 
@@ -267,9 +267,9 @@ class SupportAnswer(BaseModel):
 
 Cada Section recuperada trae una **Similarity** con la Query (0 a 1). Las Sections por debajo del **Similarity Threshold** se descartan. Si no queda ninguna, el Specialist se abstiene sin llamar al LLM (3.1).
 
-- **Valor inicial: `0.42`**, el mismo de M2-Project. Ahí el barrido (`outputs/threshold_sweep.json`, `top_k=3`) mostró que entre 0.40 y 0.44 se mantenía 100% de recall y se bloqueaban las 5 preguntas trampa.
-- **Calibración:** cuando estén los Documents, se repite el barrido con los Test Queries de cada Area, incluidas preguntas trampa, y se elige el valor del medio de la zona buena. Hace falta porque las Similarities dependen de los Documents y del tamaño de las Sections, que acá cambian. El barrido corre en local y sin LLM (sección 5.5).
-- **Rol en este sistema:** es la segunda red de seguridad. El primer filtro de preguntas fuera de tema es el Router (Out of Scope). El umbral atrapa Queries que parecen de un Area pero cuya respuesta no está en su Knowledge Base.
+- **Valor elegido: `0.325`** (ticket 08). El valor inicial era `0.42`, el de M2-Project, donde entre 0.40 y 0.44 se mantenía 100% de recall y se bloqueaban las 5 preguntas trampa.
+- **Calibración (ticket 08):** el barrido sobre el split `calibration` (`outputs/threshold_sweep.json`, `top_k=4`, 20 valores de 0.25 a 0.725) mantiene 24/24 aciertos de retrieval entre 0.25 y 0.40, y se eligió el medio de esa zona. **No existe una zona que además bloquee las trampas:** la Section esperada más baja de una Query con respuesta tiene Similarity 0.408 (hr-05) y la mejor Section de una Query sin respuesta llega a 0.620 (hr-13). El primer bloqueo aparece en 0.50 y ya cuesta 3 aciertos. Las Similarities dependen de los Documents y del tamaño de las Sections, por eso el valor de M2 no servía. El barrido corre en local y sin LLM (sección 5.5).
+- **Rol en este sistema:** es la segunda red de seguridad. El primer filtro de preguntas fuera de tema es el Router (Out of Scope). Con estos Documents el umbral **no** atrapa las Queries que parecen de un Area pero cuya respuesta no está en su Knowledge Base: la Similarity mide el tema, no si el dato existe (ADR 0004).
 - Se configura en `Settings` con la variable `SIMILARITY_THRESHOLD`.
 
 ### 3.6 Corte y búsqueda
@@ -286,9 +286,9 @@ Cada Section recuperada trae una **Similarity** con la Query (0 a 1). Las Sectio
 
 **Búsqueda (`build_retrieve` en `knowledge_base/vector_store.py`).**
 
-- `build_retrieve(area, top_k, embeddings, persist_directory)` devuelve el `retrieve: Callable[[str], list[RetrievedSection]]` que recibe el Specialist. Por dentro usa `similarity_search_with_relevance_scores(query, k=top_k)`, que devuelve `(Document, Similarity)` con Similarity en 0-1 cuando la colección es coseno, y convierte cada par en un `RetrievedSection(title, text, similarity)`. Es el único lugar donde se lee la metadata del `Document`; de ahí en adelante nadie conoce LangChain `Document`.
+- `build_retrieve(area, top_k, embeddings, persist_directory)` devuelve el `retrieve: Callable[[str], list[RetrievedSection]]` que recibe el Specialist. Por dentro usa `similarity_search_with_score(query, k=top_k)`, que devuelve `(Document, distancia coseno)`; la Similarity se calcula como `1 - distancia`, limitada a 0-1, y cada par se convierte en un `RetrievedSection(title, text, similarity)`. Es el único lugar donde se lee la metadata del `Document`; de ahí en adelante nadie conoce LangChain `Document`.
 - El umbral se aplica **en Python, en el Specialist**, no en `retrieve`. No se usa `as_retriever(search_type="similarity_score_threshold")` porque filtra adentro y esconde la Similarity, que el barrido de calibración necesita ver. El mismo `retrieve` sirve para responder y para calibrar.
-- **`top_k = 3`**: trae las 3 Sections más parecidas y después el umbral (3.5) descarta las que no alcanzan. En el barrido de M2 el recall fue 100% desde `top_k=2`, así que 3 deja una Section de margen sin sumar demasiado ruido.
+- **`top_k = 4`** (ticket 08): trae las 4 Sections más parecidas y después el umbral (3.5) descarta las que no alcanzan. El valor inicial era 3, por M2. En el barrido de calibración, con 3 la Section esperada de hr-03 quedaba en el puesto 4 (Similarity 0.507 contra 0.516 del puesto 3) y con 4 los aciertos pasan de 23/24 a 24/24. Las 4 mejores siempre incluyen a las 3 mejores, así que los aciertos no pueden bajar; el costo es una Section más de ruido en el prompt del Specialist y del Judge, que mide la validación.
 - Se configura en `Settings` con la variable `RETRIEVAL_TOP_K`.
 
 ### 3.7 Router

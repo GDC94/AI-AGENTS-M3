@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     embedding_model: str = Field(default="text-embedding-3-small", min_length=1)
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
 
-    similarity_threshold: float = Field(default=0.42, ge=0.0, le=1.0)
-    retrieval_top_k: int = Field(default=3, ge=1)
+    similarity_threshold: float = Field(default=0.325, ge=0.0, le=1.0)
+    retrieval_top_k: int = Field(default=4, ge=1)
     chunk_max_tokens: int = Field(default=800, ge=1)
     chunk_overlap_tokens: int = Field(default=120, ge=0)
 

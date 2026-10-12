@@ -39,8 +39,8 @@ def test_defaults_when_only_openai_key_is_set(monkeypatch):
     assert settings.judge_model == "gpt-4.1"
     assert settings.embedding_model == "text-embedding-3-small"
     assert settings.llm_temperature == 0.0
-    assert settings.similarity_threshold == 0.42
-    assert settings.retrieval_top_k == 3
+    assert settings.similarity_threshold == 0.325
+    assert settings.retrieval_top_k == 4
     assert settings.chunk_max_tokens == 800
     assert settings.chunk_overlap_tokens == 120
     assert settings.langfuse_public_key is None
