@@ -22,6 +22,13 @@ class SweepPoint(BaseModel):
     unanswerable: int
 
 
+class SweepReport(BaseModel):
+    """A saved sweep: its points plus the top-k the Sections were retrieved with, which the points depend on."""
+
+    top_k: int
+    points: list[SweepPoint]
+
+
 def sweep_threshold(
     retrieve_by_area: Mapping[Area, Retrieve],
     test_queries: Sequence[TestQuery],

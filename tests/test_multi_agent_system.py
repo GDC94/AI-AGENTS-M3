@@ -371,3 +371,4 @@ def test_support_system_built_from_the_real_documents_answers_an_hr_query(tmp_pa
     assert result.route.target == Area.HR
     assert result.abstained is False
     assert result.sections
+    assert system.retrieval_top_k == load_settings().retrieval_top_k

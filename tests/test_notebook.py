@@ -63,3 +63,10 @@ def test_notebook_runs_top_to_bottom_without_errors():
     NotebookClient(
         notebook, timeout=600, kernel_name="python3", resources={"metadata": {"path": str(REPO_ROOT)}}
     ).execute()
+
+
+def test_the_sweep_cell_records_the_top_k_the_system_retrieves_with():
+    sweep_cells = [cell for cell in code_cells(read_notebook()) if "sweep_threshold(" in cell.source]
+
+    assert len(sweep_cells) == 1
+    assert "SweepReport(top_k=system.retrieval_top_k" in sweep_cells[0].source

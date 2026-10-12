@@ -132,6 +132,8 @@ def _is_grounded(state: SupportState) -> bool:
 class SupportSystem:
     answer_query: Callable[[str], SupportAnswer]
     retrieve_by_area: dict[Area, Retrieve]
+    # The top-k behind retrieve_by_area, so a sweep saved from it can record what it ran with.
+    retrieval_top_k: int
     langfuse: Langfuse
 
 
@@ -171,4 +173,9 @@ def build_support_system(
     )
     judge = build_judge(make_chat_model(settings.judge_model))
     answer_query = build_answer_query(graph, judge, LangfuseScorePublisher(langfuse))
-    return SupportSystem(answer_query=answer_query, retrieve_by_area=retrieve_by_area, langfuse=langfuse)
+    return SupportSystem(
+        answer_query=answer_query,
+        retrieve_by_area=retrieve_by_area,
+        retrieval_top_k=settings.retrieval_top_k,
+        langfuse=langfuse,
+    )

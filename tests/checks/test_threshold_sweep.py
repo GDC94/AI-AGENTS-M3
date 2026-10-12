@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from orchestration.area import Area
-from orchestration.checks import SweepPoint, TestQuery, sweep_threshold
+from orchestration.checks import SweepPoint, SweepReport, TestQuery, sweep_threshold
 from orchestration.section import RetrievedSection
 
 
@@ -104,3 +106,12 @@ def test_no_thresholds_gives_no_points():
     test_queries = [make_test_query("hr-01", "hr", "direct", "Vacaciones")]
 
     assert sweep_threshold({Area.HR: fake_retrieve(("Vacaciones", 0.6))}, test_queries, []) == []
+
+
+def test_the_committed_sweep_records_the_top_k_it_ran_with_and_twenty_valid_points():
+    report = SweepReport.model_validate_json(Path("outputs/threshold_sweep.json").read_text(encoding="utf-8"))
+
+    # ADR 0004 cites this file as the top-k 4 sweep; a notebook run under another RETRIEVAL_TOP_K must show.
+    assert report.top_k == 4
+    assert len(report.points) == 20
+    assert [point.threshold for point in report.points] == [round(0.25 + 0.025 * i, 3) for i in range(20)]
